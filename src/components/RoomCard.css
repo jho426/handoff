@@ -240,15 +240,25 @@
   color: var(--color-text-secondary);
 }
 
-.task-priority.high,
+/* Task priority colors */
 .task-priority.critical {
-  background-color: var(--brand-green-light);
-  color: var(--brand-green);
+  background-color: rgba(156, 35, 31, 0.15);
+  color: #9c231f;
+}
+
+.task-priority.high {
+  background-color: rgba(189, 140, 77, 0.15);
+  color: #bd8c4d;
 }
 
 .task-priority.medium {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
+  background-color: rgba(189, 181, 94, 0.15);
+  color: #bdb55e;
+}
+
+.task-priority.low {
+  background-color: rgba(149, 161, 116, 0.15);
+  color: #95a174;
 }
 
 .icon {

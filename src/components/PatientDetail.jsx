@@ -36,6 +36,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
   const fileInputRef = useRef(null);
   const isGeneratingRef = useRef(false); // Track if we're generating/saving notes
+  const isUpdatingTasksRef = useRef(false); // Track if we're updating tasks
 
   useEffect(() => {
     const notes = patient.handoffNotes || patient.handoff_notes || "";
@@ -57,7 +58,12 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
       console.log("⚠ Skipping notes update - generation in progress");
     }
 
-    setTasks(patient.tasks || []);
+    // Don't overwrite tasks if we're in the middle of updating them
+    if (!isUpdatingTasksRef.current) {
+      setTasks(patient.tasks || []);
+    } else {
+      console.log("⚠ Skipping tasks update - task update in progress");
+    }
     setEditedPatient({
       name: patient.demographics?.name || patient.patient_name || "",
       age: patient.demographics?.age || patient.age || "",
@@ -399,13 +405,26 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
+    const previousCompleted = task.completed;
+    const newCompleted = !task.completed;
+
+    // Optimistic update - update UI immediately for instant feedback
+    isUpdatingTasksRef.current = true;
+    setTasks((prevTasks) =>
+      prevTasks.map((t) =>
+        t.id === taskId ? { ...t, completed: newCompleted } : t
+      )
+    );
+
+    console.log(`→ Task ${taskId} ${newCompleted ? 'completed' : 'uncompleted'} (optimistic)`);
+
     try {
       const response = await fetch(
         `http://localhost:3001/api/tasks/${taskId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ completed: !task.completed }),
+          body: JSON.stringify({ completed: newCompleted }),
         }
       );
 
@@ -413,14 +432,24 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
         throw new Error("Failed to update task");
       }
 
-      // Update local state
-      setTasks((prevTasks) =>
-        prevTasks.map((t) =>
-          t.id === taskId ? { ...t, completed: !t.completed } : t
-        )
-      );
+      console.log(`✓ Task ${taskId} synced to database`);
+
+      // Reset updating flag after a delay to allow database propagation
+      setTimeout(() => {
+        isUpdatingTasksRef.current = false;
+        console.log("✓ Task update complete - UI can update from database");
+      }, 500);
     } catch (err) {
       console.error("Error toggling task:", err);
+
+      // Rollback optimistic update on error
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === taskId ? { ...t, completed: previousCompleted } : t
+        )
+      );
+
+      isUpdatingTasksRef.current = false;
       setError("Failed to update task status");
       setTimeout(() => setError(""), 3000);
     }
@@ -939,7 +968,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                   </button>
                 </div>
               </div>
-
               {isEditing ? (
                 <textarea
                   value={handoffNotes}
