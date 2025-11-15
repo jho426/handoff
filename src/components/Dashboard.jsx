@@ -106,7 +106,6 @@ const Dashboard = () => {
               allergies: room.patients.allergies || [],
               codeStatus: room.patients.code_status || 'Full Code',
               handoffNotes: room.patients.handoff_notes || '',
-              handoffNotesHistory: room.patients.handoff_notes_history || [],
               imageAnalysis: room.patients.image_analysis || '',
               lastHandoffUpdate: room.patients.last_handoff_update,
             },
@@ -182,7 +181,6 @@ const Dashboard = () => {
             allergies: selectedRoom.patient.allergies,
             tasks: selectedRoom.tasks,
             handoffNotes: selectedRoom.patient.handoffNotes || '',
-            handoffNotesHistory: selectedRoom.patient.handoffNotesHistory || [],
             imageAnalysis: selectedRoom.patient.imageAnalysis || '',
             lastHandoffUpdate: selectedRoom.patient.lastHandoffUpdate,
           }}

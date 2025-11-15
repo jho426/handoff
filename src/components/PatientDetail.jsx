@@ -32,11 +32,10 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
   const [imageAnalysis, setImageAnalysis] = useState("");
   const [isEditingPatient, setIsEditingPatient] = useState(false);
   const [editedPatient, setEditedPatient] = useState({});
-  const [handoffNotesHistory, setHandoffNotesHistory] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [tasks, setTasks] = useState([]);
 
   const fileInputRef = useRef(null);
+  const isGeneratingRef = useRef(false); // Track if we're generating/saving notes
 
   useEffect(() => {
     const notes = patient.handoffNotes || patient.handoff_notes || "";
@@ -48,10 +47,16 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     console.log("Handoff notes length:", notes.length);
     console.log("Image analysis from patient:", analysis);
     console.log("Image analysis length:", analysis.length);
+    console.log("Is generating?", isGeneratingRef.current);
 
-    setHandoffNotes(notes);
-    setImageAnalysis(analysis);
-    setHandoffNotesHistory(patient.handoffNotesHistory || patient.handoff_notes_history || []);
+    // Don't overwrite notes if we're in the middle of generating/saving
+    if (!isGeneratingRef.current) {
+      setHandoffNotes(notes);
+      setImageAnalysis(analysis);
+    } else {
+      console.log("⚠ Skipping notes update - generation in progress");
+    }
+
     setTasks(patient.tasks || []);
     setEditedPatient({
       name: patient.demographics?.name || patient.patient_name || "",
@@ -64,7 +69,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     });
 
     console.log("✓ Notes loaded into state");
-    console.log("History loaded:", patient.handoffNotesHistory?.length || 0, "versions");
     console.log("=== END LOADING ===");
   }, [patient]);
 
@@ -72,13 +76,13 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
   const generateHandoffNotes = async () => {
     setLoading(true);
     setError("");
+    isGeneratingRef.current = true; // Mark as generating
 
-    // Get the most recent previous handoff notes for comparison
-    const previousNotes = handoffNotes || (handoffNotesHistory.length > 0 ? handoffNotesHistory[0].notes : null);
+    // Get the previous handoff notes for comparison
+    const previousNotes = handoffNotes;
 
     console.log("=== GENERATING NEW HANDOFF NOTES ===");
     console.log("Previous notes available:", !!previousNotes);
-    console.log("History count:", handoffNotesHistory.length);
 
     try {
       const response = await fetch(
@@ -88,7 +92,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             patientData: patient,
-            previousNotes: previousNotes
+            previousNotes: previousNotes,
           }),
         }
       );
@@ -99,12 +103,84 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
       }
 
       const data = await response.json();
-      setHandoffNotes(data.summary);
+      const newHandoffNotes = data.summary;
+      setHandoffNotes(newHandoffNotes);
       setIsEditing(false);
-      setSuccess("Handoff notes generated successfully!");
+
+      console.log("✓ Handoff notes generated successfully");
+      console.log("→ Auto-saving to database...");
+
+      // Auto-save the generated notes immediately
+      await saveHandoffNotesToDB(newHandoffNotes);
+
+      console.log("✓ Auto-save completed!");
+      setSuccess("Handoff notes generated and saved successfully!");
+
+      // Reset generating flag after a delay to allow database propagation
+      setTimeout(() => {
+        isGeneratingRef.current = false;
+        console.log("✓ Generation complete - UI can update from database");
+      }, 1000);
+
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.message || "Failed to generate handoff notes");
+      isGeneratingRef.current = false; // Reset on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Regenerate handoff notes with image analysis integrated
+  const regenerateHandoffWithImage = async (imageAnalysisText) => {
+    setLoading(true);
+    setError("");
+    isGeneratingRef.current = true; // Mark as generating
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/summarize-record/${aiProvider}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            patientData: patient,
+            previousNotes: handoffNotes,
+            imageAnalysis: imageAnalysisText,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || "Failed to regenerate handoff notes"
+        );
+      }
+
+      const data = await response.json();
+      const newHandoffNotes = data.summary;
+      setHandoffNotes(newHandoffNotes);
+
+      console.log("✓ Handoff notes regenerated with image analysis");
+      console.log("→ Auto-saving to database with image analysis...");
+
+      // Auto-save the regenerated notes with the image analysis
+      await saveHandoffNotesToDB(newHandoffNotes, imageAnalysisText);
+
+      console.log("✓ Auto-save with image analysis completed!");
+
+      // Reset generating flag after a delay to allow database propagation
+      setTimeout(() => {
+        isGeneratingRef.current = false;
+        console.log("✓ Regeneration complete - UI can update from database");
+      }, 1000);
+    } catch (err) {
+      setError(
+        err.message || "Failed to regenerate handoff notes with image analysis"
+      );
+      isGeneratingRef.current = false; // Reset on error
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -152,16 +228,13 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
       const data = await response.json();
       setImageAnalysis(data.summary);
 
-      // Append image analysis to handoff notes
-      if (handoffNotes) {
-        setHandoffNotes(
-          (prev) => `${prev}\n\n## Image Analysis\n\n${data.summary}`
-        );
-      } else {
-        setHandoffNotes(`## Handoff Document Analysis\n\n${data.summary}`);
-      }
+      // Regenerate handoff notes with image analysis integrated
+      setSuccess("Image analyzed! Regenerating integrated handoff notes...");
 
-      setSuccess("Image analyzed and added to handoff notes!");
+      // Trigger regeneration of handoff notes with image analysis
+      await regenerateHandoffWithImage(data.summary);
+
+      setSuccess("Image analyzed and integrated into handoff notes!");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.message || "Failed to analyze image");
@@ -180,72 +253,85 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     }
   };
 
-  // Save handoff notes
-  const saveHandoffNotes = async () => {
-    setLoading(true);
-    setError("");
-
+  // Save handoff notes to database (helper function)
+  const saveHandoffNotesToDB = async (
+    notesToSave,
+    imageAnalysisToSave = null
+  ) => {
     const patientId = patient.patientId || patient.patient_id;
+
     const requestData = {
-      handoffNotes,
-      imageAnalysis,
+      handoffNotes: notesToSave,
+      imageAnalysis:
+        imageAnalysisToSave !== null ? imageAnalysisToSave : imageAnalysis,
       timestamp: new Date().toISOString(),
     };
 
     console.log("=== FRONTEND: SAVING HANDOFF NOTES ===");
     console.log("Patient ID being sent:", patientId);
-    console.log("Patient object:", patient);
+    console.log("Handoff notes length:", notesToSave?.length || 0);
     console.log(
-      "Request URL:",
-      `http://localhost:3001/api/patients/${patientId}/handoff`
+      "Image analysis length:",
+      (imageAnalysisToSave !== null ? imageAnalysisToSave : imageAnalysis)
+        ?.length || 0
     );
-    console.log("Request data:", {
-      handoffNotesLength: handoffNotes?.length || 0,
-      imageAnalysisLength: imageAnalysis?.length || 0,
-      timestamp: requestData.timestamp,
-    });
+
+    const response = await fetch(
+      `http://localhost:3001/api/patients/${patientId}/handoff`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestData),
+      }
+    );
+
+    console.log("Response status:", response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Response error data:", errorData);
+      throw new Error(errorData.error || "Failed to save handoff notes");
+    }
+
+    await response.json(); // Parse response
+    console.log("✓ Handoff notes saved successfully!");
+    console.log("=== END FRONTEND SAVE ===");
+
+    if (onUpdate) {
+      onUpdate({
+        ...patient,
+        handoffNotes: notesToSave,
+        lastUpdated: new Date().toISOString(),
+      });
+    }
+  };
+
+  // Save handoff notes (manual save button)
+  const saveHandoffNotes = async () => {
+    setLoading(true);
+    setError("");
+    isGeneratingRef.current = true; // Protect from stale data overwrites
+
+    console.log("→ Manual save triggered");
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/patients/${patientId}/handoff`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestData),
-        }
-      );
-
-      console.log("Response status:", response.status);
-      console.log("Response OK:", response.ok);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Response error data:", errorData);
-        throw new Error(errorData.error || "Failed to save handoff notes");
-      }
-
-      const responseData = await response.json();
-      console.log("Response data:", responseData);
-      console.log("✓ Handoff notes saved successfully!");
-      console.log("=== END FRONTEND SAVE ===");
-
+      await saveHandoffNotesToDB(handoffNotes);
+      console.log("✓ Manual save completed!");
       setSuccess("Handoff notes saved successfully!");
       setIsEditing(false);
 
-      if (onUpdate) {
-        onUpdate({
-          ...patient,
-          handoffNotes,
-          lastUpdated: new Date().toISOString(),
-        });
-      }
+      // Reset generating flag after a delay to allow database propagation
+      setTimeout(() => {
+        isGeneratingRef.current = false;
+        console.log("✓ Save complete - UI can update from database");
+      }, 1000);
 
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       console.error("=== FRONTEND: SAVE ERROR ===");
       console.error("Error:", err);
-      console.error("Error message:", err.message);
       setError(err.message || "Failed to save handoff notes");
+      isGeneratingRef.current = false; // Reset on error
     } finally {
       setLoading(false);
     }
@@ -310,30 +396,33 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
   // Toggle task completion
   const toggleTask = async (taskId) => {
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
     try {
-      const response = await fetch(`http://localhost:3001/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: !task.completed })
-      });
+      const response = await fetch(
+        `http://localhost:3001/api/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ completed: !task.completed }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to update task');
+        throw new Error("Failed to update task");
       }
 
       // Update local state
-      setTasks(prevTasks =>
-        prevTasks.map(t =>
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
           t.id === taskId ? { ...t, completed: !t.completed } : t
         )
       );
     } catch (err) {
-      console.error('Error toggling task:', err);
-      setError('Failed to update task status');
-      setTimeout(() => setError(''), 3000);
+      console.error("Error toggling task:", err);
+      setError("Failed to update task status");
+      setTimeout(() => setError(""), 3000);
     }
   };
 
@@ -564,11 +653,19 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
               </h3>
 
               {(() => {
-                const completedTasks = tasks.filter(t => t.completed);
-                const pendingTasks = tasks.filter(t => !t.completed);
+                const completedTasks = tasks.filter((t) => t.completed);
+                const pendingTasks = tasks.filter((t) => !t.completed);
                 const sortedPending = pendingTasks.sort((a, b) => {
-                  const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-                  return (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99);
+                  const priorityOrder = {
+                    critical: 0,
+                    high: 1,
+                    medium: 2,
+                    low: 3,
+                  };
+                  return (
+                    (priorityOrder[a.priority] || 99) -
+                    (priorityOrder[b.priority] || 99)
+                  );
                 });
 
                 return (
@@ -576,15 +673,21 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     {/* Task Summary */}
                     <div className="task-summary">
                       <div className="task-summary-item">
-                        <span className="task-summary-value">{tasks.length}</span>
+                        <span className="task-summary-value">
+                          {tasks.length}
+                        </span>
                         <span className="task-summary-label">Total</span>
                       </div>
                       <div className="task-summary-item completed">
-                        <span className="task-summary-value">{completedTasks.length}</span>
+                        <span className="task-summary-value">
+                          {completedTasks.length}
+                        </span>
                         <span className="task-summary-label">Completed</span>
                       </div>
                       <div className="task-summary-item pending">
-                        <span className="task-summary-value">{pendingTasks.length}</span>
+                        <span className="task-summary-value">
+                          {pendingTasks.length}
+                        </span>
                         <span className="task-summary-label">Pending</span>
                       </div>
                     </div>
@@ -597,7 +700,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                           Completed This Shift ({completedTasks.length})
                         </h4>
                         <div className="task-list">
-                          {completedTasks.map(task => (
+                          {completedTasks.map((task) => (
                             <div
                               key={task.id}
                               className="task-item completed"
@@ -607,11 +710,15 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                               <div className="task-content">
                                 <div className="task-header">
                                   <span className="task-time">{task.time}</span>
-                                  <span className={`task-priority ${task.priority}`}>
+                                  <span
+                                    className={`task-priority ${task.priority}`}
+                                  >
                                     {task.priority}
                                   </span>
                                 </div>
-                                <p className="task-description">{task.description}</p>
+                                <p className="task-description">
+                                  {task.description}
+                                </p>
                                 <span className="task-type">{task.type}</span>
                               </div>
                             </div>
@@ -628,7 +735,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                           Outstanding Tasks ({pendingTasks.length})
                         </h4>
                         <div className="task-list">
-                          {sortedPending.map(task => (
+                          {sortedPending.map((task) => (
                             <div
                               key={task.id}
                               className={`task-item pending priority-${task.priority}`}
@@ -638,11 +745,15 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                               <div className="task-content">
                                 <div className="task-header">
                                   <span className="task-time">{task.time}</span>
-                                  <span className={`task-priority ${task.priority}`}>
+                                  <span
+                                    className={`task-priority ${task.priority}`}
+                                  >
                                     {task.priority}
                                   </span>
                                 </div>
-                                <p className="task-description">{task.description}</p>
+                                <p className="task-description">
+                                  {task.description}
+                                </p>
                                 <span className="task-type">{task.type}</span>
                               </div>
                             </div>
@@ -817,10 +928,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                             Saving...
                           </>
                         ) : (
-                          <>
-                            <Save className="notes-action-icon" />
-                            Save Handoff Notes
-                          </>
+                          <>Save Changes</>
                         )}
                       </button>
                     </>
@@ -829,15 +937,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     <Copy className="notes-action-icon" />
                     {copied ? "Copied!" : "Copy"}
                   </button>
-                  {handoffNotesHistory.length > 0 && (
-                    <button
-                      onClick={() => setShowHistory(!showHistory)}
-                      className="notes-action-button"
-                    >
-                      <FileText className="notes-action-icon" />
-                      {showHistory ? "Hide" : "View"} History ({handoffNotesHistory.length})
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -850,33 +949,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                 />
               ) : (
                 <FormattedHandoffNotes content={handoffNotes} />
-              )}
-
-              {/* Handoff Notes History */}
-              {showHistory && handoffNotesHistory.length > 0 && (
-                <div className="mt-6 border-t-2 border-gray-300 pt-6">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Previous Versions
-                  </h4>
-                  <div className="space-y-4">
-                    {handoffNotesHistory.map((version, index) => (
-                      <div key={index} className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-gray-600">
-                            Version {handoffNotesHistory.length - index}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(version.timestamp).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-700 bg-white p-3 rounded border border-gray-200">
-                          <FormattedHandoffNotes content={version.notes} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               )}
             </div>
           )}

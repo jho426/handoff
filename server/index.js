@@ -98,12 +98,29 @@ app.post(
                 type: "text",
                 text: `You are a clinical nursing assistant analyzing a handoff document or whiteboard. Please extract and summarize the following information:
 
-1. Patient identifiers (name, room number, MRN if visible)
-2. Chief complaint or reason for admission
-3. Key vital signs or measurements
-4. Important medications or treatments
-5. Pending tasks or actions needed
-6. Any safety concerns or alerts
+1. Patient overview and Shift-Level Forecast
+2. Current clinical status and vital signs
+3. Key lab/imaging findings and trends
+4. Active medications and treatments
+5. TASK STATUS - Completed and outstanding tasks (VERY IMPORTANT)
+6. Safety concerns (allergies, fall risk, code status, etc.)
+
+WE CARE A LOT ABOUT TRENDS - If there are trends in vitals, labs, or condition changes, highlight them clearly.
+
+note:
+Shift-Level Forecast ("Tonight's Workload Prediction") is
+A “weather forecast” for the shift:
+⛈️ High workload spike predicted at 2AM
+— meds cluster
+— labs returning
+— vitals rechecks
+— imaging scheduled
+☀️ Stable period from 4–6AM
+Visually:
+Line chart of predicted “task load intensity”
+Color-coded timeline
+Alerts like: “Expect 4 high-acuity events within next 3 hours.”
+This makes the app feel like mission control.
 
 Format the output as a clear, organized summary suitable for nurse handoff. If any information is unclear or not visible, note that. Keep the summary concise and focused on actionable items.`,
               },
@@ -134,7 +151,7 @@ app.post("/api/summarize-record/claude", async (req, res) => {
       });
     }
 
-    const { patientData, previousNotes } = req.body;
+    const { patientData, previousNotes, imageAnalysis } = req.body;
 
     if (!patientData) {
       return res.status(400).json({ error: "No patient data provided" });
@@ -142,22 +159,40 @@ app.post("/api/summarize-record/claude", async (req, res) => {
 
     // Extract task information
     const tasks = patientData.tasks || [];
-    const completedTasks = tasks.filter(t => t.completed);
-    const pendingTasks = tasks.filter(t => !t.completed);
+    const completedTasks = tasks.filter((t) => t.completed);
+    const pendingTasks = tasks.filter((t) => !t.completed);
 
     console.log("=== TASK SUMMARY ===");
     console.log("Total tasks:", tasks.length);
     console.log("Completed:", completedTasks.length);
     console.log("Pending:", pendingTasks.length);
+    console.log("Image analysis provided:", !!imageAnalysis);
 
     let promptContent = `You are a clinical nursing assistant. Please analyze this patient record and create a concise handoff summary for the incoming nurse. Focus on:
 
-1. Patient overview and chief complaint
+1. Patient overview and Shift-Level Forecast
 2. Current clinical status and vital signs
 3. Key lab/imaging findings and trends
 4. Active medications and treatments
 5. TASK STATUS - Completed and outstanding tasks (VERY IMPORTANT)
 6. Safety concerns (allergies, fall risk, code status, etc.)
+
+WE CARE A LOT ABOUT TRENDS - If there are trends in vitals, labs, or condition changes, highlight them clearly.
+
+note:
+Shift-Level Forecast ("Tonight's Workload Prediction") is
+A “weather forecast” for the shift:
+⛈️ High workload spike predicted at 2AM
+— meds cluster
+— labs returning
+— vitals rechecks
+— imaging scheduled
+☀️ Stable period from 4–6AM
+Visually:
+Line chart of predicted “task load intensity”
+Color-coded timeline
+Alerts like: “Expect 4 high-acuity events within next 3 hours.”
+This makes the app feel like mission control.
 
 Patient Record:
 ${JSON.stringify(patientData, null, 2)}
@@ -167,18 +202,51 @@ TASK COMPLETION STATUS:
 - Completed Tasks: ${completedTasks.length}
 - Outstanding Tasks: ${pendingTasks.length}
 
-${completedTasks.length > 0 ? `COMPLETED TASKS (${completedTasks.length}):
-${completedTasks.map(t => `✓ ${t.time} - ${t.description} (${t.priority} priority, ${t.type})`).join('\n')}
-` : ''}
-${pendingTasks.length > 0 ? `OUTSTANDING TASKS (${pendingTasks.length}) - REQUIRES ATTENTION:
-${pendingTasks.map(t => `⚠ ${t.time} - ${t.description} (${t.priority} priority, ${t.type})`).join('\n')}
-` : ''}
+${
+  completedTasks.length > 0
+    ? `COMPLETED TASKS (${completedTasks.length}):
+${completedTasks
+  .map(
+    (t) => `✓ ${t.time} - ${t.description} (${t.priority} priority, ${t.type})`
+  )
+  .join("\n")}
+`
+    : ""
+}
+${
+  pendingTasks.length > 0
+    ? `OUTSTANDING TASKS (${pendingTasks.length}) - REQUIRES ATTENTION:
+${pendingTasks
+  .map(
+    (t) => `⚠ ${t.time} - ${t.description} (${t.priority} priority, ${t.type})`
+  )
+  .join("\n")}
+`
+    : ""
+}
 
 IMPORTANT: In your handoff summary, include a dedicated section for "Task Status" that clearly shows:
 - What tasks have been completed during this shift
 - What outstanding tasks remain and their priority
 - Any time-sensitive tasks that need immediate attention
 - Organize outstanding tasks by priority (critical → high → medium → low)`;
+
+    if (imageAnalysis) {
+      promptContent += `
+
+HANDOFF DOCUMENT IMAGE ANALYSIS:
+The following information was extracted from an uploaded handoff whiteboard/document image:
+
+${imageAnalysis}
+
+IMPORTANT: Integrate this image information throughout your handoff summary:
+- Merge any vitals from the image with the patient record (prioritize most recent)
+- Incorporate medications, orders, or tasks mentioned in the image into appropriate sections
+- Cross-reference information between the image and patient record
+- If the image contains newer or conflicting information, note this clearly with **IMAGE UPDATE:** prefix
+- Do NOT create a separate "Image Analysis" section - instead weave this information naturally into the appropriate sections
+- The image may contain handwritten notes or whiteboard information that supplements the electronic record`;
+    }
 
     if (previousNotes) {
       promptContent += `
@@ -199,7 +267,11 @@ This helps the incoming nurse quickly identify what's different and what require
 
     promptContent += `
 
-Provide a clear, actionable summary suitable for nurse-to-nurse handoff. Make task status prominent and easy to scan.`;
+Provide a clear, actionable summary suitable for nurse-to-nurse handoff. Make task status prominent and easy to scan.${
+      imageAnalysis
+        ? " Ensure all information from the handoff image is naturally integrated into the appropriate sections, not listed separately."
+        : ""
+    }`;
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -219,7 +291,7 @@ Provide a clear, actionable summary suitable for nurse-to-nurse handoff. Make ta
     res.status(500).json({
       error: "Failed to summarize record with Claude",
       details: error.message,
-      });
+    });
   }
 });
 
@@ -422,41 +494,10 @@ app.post("/api/patients/:id/handoff", async (req, res) => {
       patient_id: patient.patient_id,
     });
 
-    // Get current handoff notes to save as previous version
-    const { data: currentPatient } = await supabase
-      .from("patients")
-      .select("handoff_notes, handoff_notes_history")
-      .eq("id", patient.id)
-      .single();
-
-    console.log("Current handoff notes:", currentPatient?.handoff_notes);
-
-    // Build history array
-    let history = [];
-    if (currentPatient?.handoff_notes_history) {
-      history = Array.isArray(currentPatient.handoff_notes_history)
-        ? currentPatient.handoff_notes_history
-        : [];
-    }
-
-    // Add current version to history if it exists
-    if (currentPatient?.handoff_notes) {
-      history.unshift({
-        notes: currentPatient.handoff_notes,
-        timestamp: currentPatient.last_handoff_update || new Date().toISOString(),
-      });
-
-      // Keep only last 10 versions
-      if (history.length > 10) {
-        history = history.slice(0, 10);
-      }
-    }
-
     // Update patient with handoff notes using the database id
     console.log("Updating patient with id:", patient.id);
     const updatePayload = {
       handoff_notes: handoffNotes,
-      handoff_notes_history: history,
       image_analysis: imageAnalysis,
       last_handoff_update: timestamp || new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -466,7 +507,7 @@ app.post("/api/patients/:id/handoff", async (req, res) => {
       .from("patients")
       .update(updatePayload)
       .eq("id", patient.id)
-      .select("handoff_notes, handoff_notes_history, image_analysis, last_handoff_update")
+      .select("handoff_notes, image_analysis, last_handoff_update")
       .single();
 
     console.log("Update result:", updatedPatient);
@@ -488,7 +529,6 @@ app.post("/api/patients/:id/handoff", async (req, res) => {
       message: "Handoff notes saved successfully",
       handoffData: {
         handoffNotes: updatedPatient.handoff_notes,
-        handoffNotesHistory: updatedPatient.handoff_notes_history,
         imageAnalysis: updatedPatient.image_analysis,
         lastHandoffUpdate: updatedPatient.last_handoff_update,
       },
@@ -533,7 +573,8 @@ app.post("/api/nurses/create-accounts", async (req, res) => {
   try {
     if (!supabaseAdmin) {
       return res.status(503).json({
-        error: "Admin operations require SUPABASE_SERVICE_KEY to be set in environment variables",
+        error:
+          "Admin operations require SUPABASE_SERVICE_KEY to be set in environment variables",
       });
     }
 
@@ -545,7 +586,7 @@ app.post("/api/nurses/create-accounts", async (req, res) => {
     if (fetchError) throw fetchError;
 
     const results = [];
-    
+
     for (const nurse of nurses) {
       // Skip if nurse already has an auth_user_id
       if (nurse.auth_user_id) {
@@ -559,8 +600,9 @@ app.post("/api/nurses/create-accounts", async (req, res) => {
       }
 
       // Check if auth user already exists with this email
-      const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-      
+      const { data: existingUsers, error: listError } =
+        await supabaseAdmin.auth.admin.listUsers();
+
       if (listError) {
         results.push({
           nurse_id: nurse.id,
@@ -604,16 +646,17 @@ app.post("/api/nurses/create-accounts", async (req, res) => {
       // Create new auth account for nurse
       // Generate a temporary password (nurse should change it on first login)
       const tempPassword = `Temp${nurse.id}${Date.now()}`;
-      
-      const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: nurse.email,
-        password: tempPassword,
-        email_confirm: true, // Auto-confirm email
-        user_metadata: {
-          name: nurse.name,
-          nurse_id: nurse.id,
-        },
-      });
+
+      const { data: authUser, error: createError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email: nurse.email,
+          password: tempPassword,
+          email_confirm: true, // Auto-confirm email
+          user_metadata: {
+            name: nurse.name,
+            nurse_id: nurse.id,
+          },
+        });
 
       if (createError) {
         results.push({
@@ -845,7 +888,7 @@ app.post("/api/patients", async (req, res) => {
       admissionDate,
       lastVitals,
       gridX,
-      gridY
+      gridY,
     } = req.body;
 
     console.log("=== CREATING NEW PATIENT ===");
@@ -923,16 +966,16 @@ app.post("/api/patients", async (req, res) => {
       if (roomUpdateError) throw roomUpdateError;
     } else {
       // Create new room
-      const { error: roomCreateError } = await supabase
-        .from("rooms")
-        .insert([{
+      const { error: roomCreateError } = await supabase.from("rooms").insert([
+        {
           id: room,
           patient_id: newPatient.id,
           grid_x: gridX || 0,
           grid_y: gridY || 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        }]);
+        },
+      ]);
 
       if (roomCreateError) throw roomCreateError;
     }
