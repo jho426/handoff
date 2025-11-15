@@ -1,141 +1,224 @@
-import { useState } from 'react';
-import { Camera, FileText, Users, Settings } from 'lucide-react';
-import ImageAnalyzer from './ImageAnalyzer';
-import PatientRecords from './PatientRecords';
+import { useState } from "react";
+import { FiGrid, FiList, FiMap, FiUsers, FiFilter } from "react-icons/fi";
+import RoomCard from "./RoomCard";
+import NurseSchedule from "./NurseSchedule";
+import TaskList from "./TaskList";
+import RouteMap from "./RouteMap";
+import { mockRooms } from "../data/mockData";
+import "./Dashboard.css";
 
 const Dashboard = () => {
-  const [activeView, setActiveView] = useState('home');
-  const [aiProvider, setAiProvider] = useState('claude');
+  const [view, setView] = useState("rooms"); // rooms, tasks, route, schedule
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [filterRisk, setFilterRisk] = useState("all");
 
-  const renderView = () => {
-    switch (activeView) {
-      case 'image':
-        return <ImageAnalyzer aiProvider={aiProvider} onBack={() => setActiveView('home')} />;
-      case 'records':
-        return <PatientRecords aiProvider={aiProvider} onBack={() => setActiveView('home')} />;
-      case 'home':
-      default:
-        return (
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <h1 className="text-5xl font-bold text-gray-800 mb-4">
-                Nurse Handoff Helper
-              </h1>
-              <p className="text-xl text-gray-600">
-                AI-powered tools to streamline patient handoff and care coordination
-              </p>
-            </div>
+  const filteredRooms =
+    filterRisk === "all"
+      ? mockRooms
+      : mockRooms.filter((room) => room.patient.riskLevel === filterRisk);
 
-            {/* AI Provider Selection */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Settings className="w-6 h-6 text-gray-600" />
-                  <h2 className="text-xl font-semibold text-gray-800">AI Provider</h2>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setAiProvider('claude')}
-                    className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                      aiProvider === 'claude'
-                        ? 'bg-purple-600 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    Claude
-                  </button>
-                  <button
-                    onClick={() => setAiProvider('openai')}
-                    className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                      aiProvider === 'openai'
-                        ? 'bg-green-600 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    OpenAI
-                  </button>
-                </div>
-              </div>
-              <p className="text-sm text-gray-500 mt-3">
-                Current provider: <span className="font-semibold">{aiProvider === 'claude' ? 'Claude Sonnet 4' : 'GPT-4o'}</span>
-              </p>
-            </div>
+  const riskCounts = {
+    all: mockRooms.length,
+    critical: mockRooms.filter((r) => r.patient.riskLevel === "critical")
+      .length,
+    high: mockRooms.filter((r) => r.patient.riskLevel === "high").length,
+    medium: mockRooms.filter((r) => r.patient.riskLevel === "medium").length,
+    low: mockRooms.filter((r) => r.patient.riskLevel === "low").length,
+  };
 
-            {/* Feature Cards */}
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Image Analysis Card */}
-              <div
-                onClick={() => setActiveView('image')}
-                className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl border border-blue-100"
+  return (
+    <div className="dashboard">
+      <header className="dashboard-header">
+        <div className="header-content">
+          <h1>Handoff Dashboard</h1>
+          <p className="subtitle">Smart patient care coordination platform</p>
+        </div>
+        <div className="header-stats">
+          <div className="stat-card">
+            <div className="stat-value">{mockRooms.length}</div>
+            <div className="stat-label">Active Rooms</div>
+          </div>
+          <div className="stat-card critical">
+            <div className="stat-value">{riskCounts.critical}</div>
+            <div className="stat-label">Critical</div>
+          </div>
+          <div className="stat-card high">
+            <div className="stat-value">{riskCounts.high}</div>
+            <div className="stat-label">High Risk</div>
+          </div>
+        </div>
+      </header>
+
+      <nav className="dashboard-nav">
+        <div className="nav-tabs">
+          <button
+            className={`nav-tab ${view === "rooms" ? "active" : ""}`}
+            onClick={() => setView("rooms")}
+          >
+            <FiGrid className="icon" />
+            Rooms
+          </button>
+          <button
+            className={`nav-tab ${view === "tasks" ? "active" : ""}`}
+            onClick={() => setView("tasks")}
+          >
+            <FiList className="icon" />
+            Tasks
+          </button>
+          <button
+            className={`nav-tab ${view === "route" ? "active" : ""}`}
+            onClick={() => setView("route")}
+          >
+            <FiMap className="icon" />
+            Route
+          </button>
+          <button
+            className={`nav-tab ${view === "schedule" ? "active" : ""}`}
+            onClick={() => setView("schedule")}
+          >
+            <FiUsers className="icon" />
+            Schedule
+          </button>
+        </div>
+
+        {view === "rooms" && (
+          <div className="filter-controls">
+            <FiFilter className="icon" />
+            <select
+              value={filterRisk}
+              onChange={(e) => setFilterRisk(e.target.value)}
+              className="risk-filter"
+            >
+              <option value="all">All Risk Levels ({riskCounts.all})</option>
+              <option value="critical">Critical ({riskCounts.critical})</option>
+              <option value="high">High ({riskCounts.high})</option>
+              <option value="medium">Medium ({riskCounts.medium})</option>
+              <option value="low">Low ({riskCounts.low})</option>
+            </select>
+          </div>
+        )}
+      </nav>
+
+      <main className="dashboard-main">
+        {view === "rooms" && (
+          <div className="rooms-grid">
+            {filteredRooms.map((room) => (
+              <RoomCard key={room.id} room={room} onSelect={setSelectedRoom} />
+            ))}
+          </div>
+        )}
+
+        {view === "tasks" && <TaskList />}
+
+        {view === "route" && <RouteMap />}
+
+        {view === "schedule" && <NurseSchedule />}
+      </main>
+
+      {selectedRoom && (
+        <div className="modal-overlay" onClick={() => setSelectedRoom(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                Room {selectedRoom.id} - {selectedRoom.patient.name}
+              </h2>
+              <button
+                className="close-btn"
+                onClick={() => setSelectedRoom(null)}
               >
-                <div className="bg-blue-500 w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                  <Camera className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                  Analyze Handoff Document
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  Upload a photo of a handoff whiteboard or sheet to get an AI-powered summary
-                  with key patient information, vital signs, and action items.
-                </p>
-                <div className="flex items-center text-blue-600 font-semibold">
-                  Get Started
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Patient Records Card */}
-              <div
-                onClick={() => setActiveView('records')}
-                className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-8 cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl border border-emerald-100"
-              >
-                <div className="bg-emerald-500 w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                  <FileText className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                  Patient Records Summary
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  View and analyze patient records with AI-generated summaries highlighting
-                  critical information, trends, and pending tasks.
-                </p>
-                <div className="flex items-center text-emerald-600 font-semibold">
-                  View Records
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
+                ×
+              </button>
             </div>
-
-            {/* Info Section */}
-            <div className="mt-12 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-100">
-              <div className="flex items-start gap-4">
-                <div className="bg-purple-500 rounded-full p-2">
-                  <Users className="w-6 h-6 text-white" />
+            <div className="modal-body">
+              <div className="detail-section">
+                <h3>Patient Information</h3>
+                <div className="detail-grid">
+                  <div>
+                    <strong>MRN:</strong> {selectedRoom.patient.mrn}
+                  </div>
+                  <div>
+                    <strong>Age:</strong> {selectedRoom.patient.age} years
+                  </div>
+                  <div>
+                    <strong>Admission Date:</strong>{" "}
+                    {selectedRoom.patient.admissionDate}
+                  </div>
+                  <div>
+                    <strong>Diagnosis:</strong> {selectedRoom.patient.diagnosis}
+                  </div>
+                  <div>
+                    <strong>Condition:</strong> {selectedRoom.patient.condition}
+                  </div>
+                  <div>
+                    <strong>Risk Level:</strong>{" "}
+                    {selectedRoom.patient.riskLevel}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    About This Tool
-                  </h3>
-                  <p className="text-gray-600">
-                    This application helps healthcare professionals streamline patient handoffs
-                    by leveraging AI to extract, summarize, and organize critical patient information.
-                    Choose your preferred AI provider and select a feature above to get started.
-                  </p>
+              </div>
+
+              <div className="detail-section">
+                <h3>Vital Signs</h3>
+                <div className="vitals-detail">
+                  <div>
+                    Blood Pressure:{" "}
+                    <strong>{selectedRoom.patient.lastVitals.bp}</strong>
+                  </div>
+                  <div>
+                    Heart Rate:{" "}
+                    <strong>
+                      {selectedRoom.patient.lastVitals.heartRate} bpm
+                    </strong>
+                  </div>
+                  <div>
+                    Temperature:{" "}
+                    <strong>{selectedRoom.patient.lastVitals.temp}°F</strong>
+                  </div>
+                  <div>
+                    O2 Saturation:{" "}
+                    <strong>{selectedRoom.patient.lastVitals.o2Sat}%</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="detail-section">
+                <h3>Medications</h3>
+                <ul className="medications-list">
+                  {selectedRoom.patient.medications.map((med, idx) => (
+                    <li key={idx}>{med}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="detail-section">
+                <h3>Allergies</h3>
+                <p>
+                  {selectedRoom.patient.allergies.length > 0
+                    ? selectedRoom.patient.allergies.join(", ")
+                    : "None"}
+                </p>
+              </div>
+
+              <div className="detail-section">
+                <h3>All Tasks</h3>
+                <div className="tasks-list">
+                  {selectedRoom.tasks.map((task) => (
+                    <div key={task.id} className="task-item">
+                      <span className="task-time">{task.time}</span>
+                      <span className="task-type">{task.type}</span>
+                      <span className="task-description">
+                        {task.description}
+                      </span>
+                      <span className={`task-priority ${task.priority}`}>
+                        {task.priority}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        );
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
-      {renderView()}
+        </div>
+      )}
     </div>
   );
 };
