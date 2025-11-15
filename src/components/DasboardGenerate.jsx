@@ -57,22 +57,12 @@ const DashboardGenerate = () => {
                   >
                     Claude
                   </button>
-                  <button
-                    onClick={() => setAiProvider("openai")}
-                    className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                      aiProvider === "openai"
-                        ? "bg-green-600 text-white shadow-lg"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    OpenAI
-                  </button>
                 </div>
               </div>
               <p className="text-sm text-gray-500 mt-3">
                 Current provider:{" "}
                 <span className="font-semibold">
-                  {aiProvider === "claude" ? "Claude Sonnet 4" : "GPT-4o"}
+                  Claude Sonnet 4
                 </span>
               </p>
             </div>

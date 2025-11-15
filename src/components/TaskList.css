@@ -1,5 +1,5 @@
 .task-list-container {
-  max-width: 1000px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -169,14 +169,18 @@
 }
 
 .task-content {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+  gap: var(--spacing-sm);
 }
 
 .task-header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: row;
   align-items: center;
-  margin-bottom: var(--spacing-sm);
+  gap: var(--spacing-md);
 }
 
 .task-time {
@@ -186,6 +190,8 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color-text-primary);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .task-time .icon {
@@ -206,6 +212,8 @@
   letter-spacing: 0.05em;
   background-color: var(--brand-green-light);
   color: var(--brand-green);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .priority-icon {
@@ -217,7 +225,9 @@
   font-size: 15px;
   font-weight: 500;
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-sm);
+  white-space: nowrap;
+  overflow: visible;
+  min-width: max-content;
 }
 
 .task-meta {
@@ -226,6 +236,8 @@
   gap: var(--spacing-sm);
   font-size: 13px;
   color: var(--color-text-secondary);
+  width: 100%;
+  min-width: 100%;
 }
 
 .task-type {
@@ -240,10 +252,17 @@
 .task-room {
   font-weight: 600;
   color: var(--color-text-primary);
+  width: 100%;
+  white-space: nowrap;
+  overflow: visible;
+  min-width: max-content;
 }
 
 .task-patient {
   color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: visible;
+  min-width: max-content;
 }
 
 .empty-state {

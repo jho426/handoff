@@ -175,7 +175,10 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     console.log("=== FRONTEND: SAVING HANDOFF NOTES ===");
     console.log("Patient ID being sent:", patientId);
     console.log("Patient object:", patient);
-    console.log("Request URL:", `http://localhost:3001/api/patients/${patientId}/handoff`);
+    console.log(
+      "Request URL:",
+      `http://localhost:3001/api/patients/${patientId}/handoff`
+    );
     console.log("Request data:", {
       handoffNotesLength: handoffNotes?.length || 0,
       imageAnalysisLength: imageAnalysis?.length || 0,
@@ -305,31 +308,38 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
         {/* Left Column - Patient Info */}
         <div className="patient-info-column">
           {/* Patient Header */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="patient-header-card">
+            <div className="patient-header-top">
               {isEditingPatient ? (
                 <input
                   type="text"
                   value={editedPatient.name}
-                  onChange={(e) => setEditedPatient({...editedPatient, name: e.target.value})}
+                  onChange={(e) =>
+                    setEditedPatient({ ...editedPatient, name: e.target.value })
+                  }
                   className="text-2xl font-bold text-gray-800 border-b-2 border-blue-500 outline-none bg-transparent"
                 />
               ) : (
-                <h2 className="text-2xl font-bold text-gray-800">
-                  {patientName}
-                </h2>
+                <h2 className="patient-name">{patientName}</h2>
               )}
-              <div className="flex gap-2">
+              <div className="room-badge">
                 <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                   Room {patient.room}
                 </div>
                 {!isEditingPatient ? (
-                  <button onClick={() => setIsEditingPatient(true)} className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-medium transition-colors">
+                  <button
+                    onClick={() => setIsEditingPatient(true)}
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-medium transition-colors"
+                  >
                     <Edit3 className="w-4 h-4 inline mr-1" />
                     Edit
                   </button>
                 ) : (
-                  <button onClick={savePatientInfo} disabled={loading} className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-full text-sm font-medium transition-colors">
+                  <button
+                    onClick={savePatientInfo}
+                    disabled={loading}
+                    className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-full text-sm font-medium transition-colors"
+                  >
                     <Save className="w-4 h-4 inline mr-1" />
                     {loading ? "Saving..." : "Save"}
                   </button>
@@ -343,19 +353,31 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     <input
                       type="number"
                       value={editedPatient.age}
-                      onChange={(e) => setEditedPatient({...editedPatient, age: e.target.value})}
+                      onChange={(e) =>
+                        setEditedPatient({
+                          ...editedPatient,
+                          age: e.target.value,
+                        })
+                      }
                       className="w-16 border-b border-gray-300 outline-none mr-2"
                     />
                     •
                     <input
                       type="text"
                       value={editedPatient.sex}
-                      onChange={(e) => setEditedPatient({...editedPatient, sex: e.target.value})}
+                      onChange={(e) =>
+                        setEditedPatient({
+                          ...editedPatient,
+                          sex: e.target.value,
+                        })
+                      }
                       className="w-20 border-b border-gray-300 outline-none ml-2"
                     />
                   </>
                 ) : (
-                  <>{patientAge} • {patientSex}</>
+                  <>
+                    {patientAge} • {patientSex}
+                  </>
                 )}
               </p>
               <p>ID: {patient.patientId || patient.patient_id}</p>
@@ -371,7 +393,12 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
             {isEditingPatient ? (
               <textarea
                 value={editedPatient.chiefComplaint}
-                onChange={(e) => setEditedPatient({...editedPatient, chiefComplaint: e.target.value})}
+                onChange={(e) =>
+                  setEditedPatient({
+                    ...editedPatient,
+                    chiefComplaint: e.target.value,
+                  })
+                }
                 className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500"
                 rows="2"
               />
@@ -391,7 +418,12 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                   <input
                     type="text"
                     value={editedPatient.codeStatus}
-                    onChange={(e) => setEditedPatient({...editedPatient, codeStatus: e.target.value})}
+                    onChange={(e) =>
+                      setEditedPatient({
+                        ...editedPatient,
+                        codeStatus: e.target.value,
+                      })
+                    }
                     className="info-value border-b border-gray-300 outline-none"
                   />
                 ) : (
@@ -617,7 +649,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     <Copy className="notes-action-icon" />
                     {copied ? "Copied!" : "Copy"}
                   </button>
-                  {isEditing && (
+                  {!isEditing && (
                     <button
                       onClick={saveHandoffNotes}
                       disabled={loading}
