@@ -53,49 +53,51 @@ const RoomCard = ({ room, onSelect }) => {
         </div>
       </div>
 
-      <div className="assigned-nurse">
-        <FiUser className="icon" />
-        <span>{room.assignedNurse.name}</span>
-        <span className="expertise-badge">{room.assignedNurse.expertise}</span>
-      </div>
+      {room.assignedNurse && (
+        <div className="assigned-nurse">
+          <FiUser className="icon" />
+          <span>{room.assignedNurse.name}</span>
+          <span className="expertise-badge">{room.assignedNurse.expertise}</span>
+        </div>
+      )}
 
-      <div className="ai-insights">
-        <div className="insights-header">
-          <FiActivity className="icon" />
-          <span>AI Insights</span>
+      {room.patient.aiInsights && room.patient.aiInsights.length > 0 && (
+        <div className="ai-insights">
+          <div className="insights-header">
+            <FiActivity className="icon" />
+            <span>AI Insights</span>
+          </div>
+          <div className="insights-list">
+            {room.patient.aiInsights.slice(0, expanded ? room.patient.aiInsights.length : 1).map((insight, idx) => (
+              <div key={idx} className={`insight-item ${insight.includes('⚠️') ? 'alert' : ''}`}>
+                {insight}
+              </div>
+            ))}
+            {room.patient.aiInsights.length > 1 && (
+              <button 
+                className="expand-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpanded(!expanded);
+                }}
+              >
+                {expanded ? 'Show less' : `+${room.patient.aiInsights.length - 1} more`}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="insights-list">
-          {room.patient.aiInsights.slice(0, expanded ? room.patient.aiInsights.length : 1).map((insight, idx) => (
-            <div key={idx} className={`insight-item ${insight.includes('⚠️') ? 'alert' : ''}`}>
-              {insight}
-            </div>
-          ))}
-          {room.patient.aiInsights.length > 1 && (
-            <button 
-              className="expand-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded(!expanded);
-              }}
-            >
-              {expanded ? 'Show less' : `+${room.patient.aiInsights.length - 1} more`}
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       <div className="upcoming-tasks">
         <div className="tasks-header">
           <FiClock className="icon" />
           <span>Next Task</span>
         </div>
-        {room.tasks.length > 0 && (
+        {room.tasks && room.tasks.length > 0 && (
           <div className="next-task">
             <span className="task-time">{room.tasks[0].time}</span>
             <span className="task-desc">{room.tasks[0].description}</span>
-            <span 
-              className={`task-priority ${room.tasks[0].priority}`}
-            >
+            <span className={`task-priority ${room.tasks[0].priority}`}>
               {room.tasks[0].priority}
             </span>
           </div>
@@ -106,4 +108,3 @@ const RoomCard = ({ room, onSelect }) => {
 };
 
 export default RoomCard;
-

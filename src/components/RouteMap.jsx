@@ -1,16 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { FiMapPin, FiNavigation, FiClock, FiTrendingUp, FiMove } from 'react-icons/fi';
-import { mockRooms, getAllTasks } from '../data/mockData';
+import { supabase } from '../lib/supabase';
 import './RouteMap.css';
 
 const RouteMap = () => {
   const [selectedRoute, setSelectedRoute] = useState('optimized');
-  const [rooms, setRooms] = useState(() => 
-    mockRooms.map(room => ({
-      ...room,
-      position: { ...room.location }
-    }))
-  );
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [draggedRoom, setDraggedRoom] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const floorPlanRef = useRef(null);
@@ -19,6 +16,104 @@ const RouteMap = () => {
   const GRID_SIZE = 100; // pixels per grid cell
   const GRID_COLS = 7;
   const GRID_ROWS = 5;
+
+  // Fetch rooms and tasks from Supabase
+  useEffect(() => {
+    fetchRooms();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('route-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rooms'
+        },
+        () => {
+          console.log('Rooms changed, refreshing...');
+          fetchRooms();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks'
+        },
+        () => {
+          console.log('Tasks changed, refreshing...');
+          fetchRooms();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchRooms = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch rooms with patient data
+      const { data: roomsData, error: roomsError } = await supabase
+        .from('rooms')
+        .select(`
+          *,
+          patients (*)
+        `);
+
+      if (roomsError) throw roomsError;
+
+      // Fetch tasks for each room/patient
+      const roomsWithTasks = await Promise.all(
+        roomsData.map(async (room) => {
+          if (!room.patients) return null;
+
+          const { data: tasks } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('patient_id', room.patients.id)
+            .order('time', { ascending: true });
+
+          return {
+            id: room.id,
+            patient: {
+              name: room.patients.name,
+              age: room.patients.age,
+              mrn: room.patients.mrn,
+              diagnosis: room.patients.diagnosis,
+              condition: room.patients.condition,
+              riskLevel: room.patients.risk_level,
+            },
+            tasks: (tasks || []).map(task => ({
+              id: task.id,
+              time: task.time,
+              type: task.type,
+              description: task.description,
+              priority: task.priority,
+            })),
+            position: {
+              gridX: room.grid_x || 1,
+              gridY: room.grid_y || 1,
+            }
+          };
+        })
+      );
+
+      setRooms(roomsWithTasks.filter(room => room !== null));
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching rooms:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calculate optimized route using simple nearest-neighbor algorithm
   const calculateOptimizedRoute = () => {
@@ -73,7 +168,6 @@ const RouteMap = () => {
     return Math.round(total);
   };
 
-
   const handleMouseDown = (e, room) => {
     e.preventDefault();
     if (!floorPlanRef.current) return;
@@ -121,7 +215,27 @@ const RouteMap = () => {
     );
   }, []);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback(async () => {
+    if (draggedRoomRef.current) {
+      const room = draggedRoomRef.current;
+      
+      // Save new position to Supabase
+      try {
+        const { error } = await supabase
+          .from('rooms')
+          .update({
+            grid_x: room.position.gridX,
+            grid_y: room.position.gridY
+          })
+          .eq('id', room.id);
+
+        if (error) throw error;
+        console.log('Room position saved:', room.id);
+      } catch (err) {
+        console.error('Error saving room position:', err);
+      }
+    }
+
     draggedRoomRef.current = null;
     dragOffsetRef.current = { x: 0, y: 0 };
     setDraggedRoom(null);
@@ -149,6 +263,30 @@ const RouteMap = () => {
   const getRouteIndex = (roomId) => {
     return currentRoute.findIndex(room => room.id === roomId);
   };
+
+  if (loading) {
+    return (
+      <div className="route-map-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading floor plan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="route-map-container">
+        <div className="error-state">
+          <p>Error loading floor plan: {error}</p>
+          <button onClick={fetchRooms} className="retry-btn">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="route-map-container">
@@ -312,32 +450,38 @@ const RouteMap = () => {
 
       <div className="route-list">
         <h3>Route Sequence</h3>
-        <div className="route-steps">
-          {currentRoute.map((room, index) => (
-            <div key={room.id} className="route-step">
-              <div className="step-number">{index + 1}</div>
-              <div className="step-content">
-                <div className="step-header">
-                  <span className="step-room">Room {room.id}</span>
-                  <span className="step-risk">
-                    {room.patient.riskLevel} risk
-                  </span>
-                </div>
-                <div className="step-patient">{room.patient.name}</div>
-                <div className="step-tasks">
-                  {room.tasks.slice(0, 2).map(task => (
-                    <span key={task.id} className="step-task">
-                      {task.time} - {task.description}
+        {currentRoute.length > 0 ? (
+          <div className="route-steps">
+            {currentRoute.map((room, index) => (
+              <div key={room.id} className="route-step">
+                <div className="step-number">{index + 1}</div>
+                <div className="step-content">
+                  <div className="step-header">
+                    <span className="step-room">Room {room.id}</span>
+                    <span className="step-risk">
+                      {room.patient.riskLevel} risk
                     </span>
-                  ))}
-                  {room.tasks.length > 2 && (
-                    <span className="step-task-more">+{room.tasks.length - 2} more</span>
-                  )}
+                  </div>
+                  <div className="step-patient">{room.patient.name}</div>
+                  <div className="step-tasks">
+                    {room.tasks.slice(0, 2).map(task => (
+                      <span key={task.id} className="step-task">
+                        {task.time} - {task.description}
+                      </span>
+                    ))}
+                    {room.tasks.length > 2 && (
+                      <span className="step-task-more">+{room.tasks.length - 2} more</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <p>No rooms with tasks. Add tasks to patients to generate a route.</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,12 +4,7 @@ import dotenv from "dotenv";
 import multer from "multer";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { createClient } from "@supabase/supabase-js";
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +33,12 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || ""
+);
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({
@@ -45,6 +46,7 @@ app.get("/api/health", (req, res) => {
     availableProviders: {
       claude: !!anthropic,
       openai: !!openai,
+      supabase: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
     },
   });
 });
@@ -277,78 +279,312 @@ Provide a clear, actionable summary suitable for nurse-to-nurse handoff.`,
   }
 });
 
-// Get all patient records
-app.get("/api/patients", (req, res) => {
+// Get all patient records with room and task info
+app.get("/api/patients", async (req, res) => {
   try {
-    const recordsPath = path.join(__dirname, "../src/records.json");
-    const records = JSON.parse(fs.readFileSync(recordsPath, "utf8"));
-    res.json(records);
+    const { data: patients, error } = await supabase
+      .from("patients")
+      .select(`
+        *,
+        rooms (
+          id,
+          grid_x,
+          grid_y
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    // Get tasks for each patient
+    const patientsWithTasks = await Promise.all(
+      patients.map(async (patient) => {
+        const { data: tasks } = await supabase
+          .from("tasks")
+          .select("*")
+          .eq("patient_id", patient.id)
+          .order("time", { ascending: true });
+
+        return {
+          ...patient,
+          tasks: tasks || [],
+        };
+      })
+    );
+
+    res.json(patientsWithTasks);
   } catch (error) {
     console.error("Error reading patient records:", error);
-    res.status(500).json({ error: "Failed to read patient records" });
+    res.status(500).json({
+      error: "Failed to read patient records",
+      details: error.message,
+    });
   }
 });
 
 // Get single patient record
-app.get("/api/patients/:id", (req, res) => {
+app.get("/api/patients/:id", async (req, res) => {
   try {
-    const recordsPath = path.join(__dirname, "../src/records.json");
-    const records = JSON.parse(fs.readFileSync(recordsPath, "utf8"));
-    const patient = records.find((p) => p.patient_id === req.params.id);
+    const { data: patient, error } = await supabase
+      .from("patients")
+      .select(`
+        *,
+        rooms (
+          id,
+          grid_x,
+          grid_y
+        ),
+        tasks (*)
+      `)
+      .eq("patient_id", req.params.id)
+      .single();
 
-    if (!patient) {
-      return res.status(404).json({ error: "Patient not found" });
+    if (error) {
+      if (error.code === "PGRST116") {
+        return res.status(404).json({ error: "Patient not found" });
+      }
+      throw error;
     }
 
     res.json(patient);
   } catch (error) {
     console.error("Error reading patient record:", error);
-    res.status(500).json({ error: "Failed to read patient record" });
+    res.status(500).json({
+      error: "Failed to read patient record",
+      details: error.message,
+    });
   }
 });
 
 // Save handoff notes for a patient
-app.post("/api/patients/:id/handoff", (req, res) => {
+app.post("/api/patients/:id/handoff", async (req, res) => {
   try {
     const { handoffNotes, imageAnalysis, timestamp } = req.body;
-    const recordsPath = path.join(__dirname, "../src/records.json");
 
-    // Read current records
-    const data = JSON.parse(fs.readFileSync(recordsPath, "utf8"));
-    const records = data.patients || data;
+    // Find patient by patient_id
+    const { data: patient, error: findError } = await supabase
+      .from("patients")
+      .select("id")
+      .eq("patient_id", req.params.id)
+      .single();
 
-    // Find patient index
-    const patientIndex = records.findIndex(
-      (p) => (p.patientId || p.patient_id) === req.params.id
-    );
-
-    if (patientIndex === -1) {
+    if (findError || !patient) {
       return res.status(404).json({ error: "Patient not found" });
     }
 
     // Update patient with handoff notes
-    records[patientIndex].handoffNotes = handoffNotes;
-    records[patientIndex].imageAnalysis = imageAnalysis;
-    records[patientIndex].lastHandoffUpdate = timestamp;
+    const { data: updatedPatient, error: updateError } = await supabase
+      .from("patients")
+      .update({
+        handoff_notes: handoffNotes,
+        image_analysis: imageAnalysis,
+        last_handoff_update: timestamp || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", patient.id)
+      .select()
+      .single();
 
-    // Write back to file
-    const updatedData = data.patients ? { patients: records } : records;
-    fs.writeFileSync(recordsPath, JSON.stringify(updatedData, null, 2));
+    if (updateError) throw updateError;
 
     res.json({
       success: true,
       message: "Handoff notes saved successfully",
-      patient: records[patientIndex],
+      patient: updatedPatient,
     });
   } catch (error) {
     console.error("Error saving handoff notes:", error);
-    res.status(500).json({ error: "Failed to save handoff notes" });
+    res.status(500).json({
+      error: "Failed to save handoff notes",
+      details: error.message,
+    });
+  }
+});
+
+// Get all nurses
+app.get("/api/nurses", async (req, res) => {
+  try {
+    const { data: nurses, error } = await supabase
+      .from("nurses")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    res.json(nurses);
+  } catch (error) {
+    console.error("Error reading nurses:", error);
+    res.status(500).json({
+      error: "Failed to read nurses",
+      details: error.message,
+    });
+  }
+});
+
+// Get all rooms with patient and nurse info
+app.get("/api/rooms", async (req, res) => {
+  try {
+    const { data: rooms, error } = await supabase
+      .from("rooms")
+      .select(`
+        *,
+        patients (*),
+        room_assignments (
+          nurses (*)
+        )
+      `)
+      .order("id", { ascending: true });
+
+    if (error) throw error;
+
+    res.json(rooms);
+  } catch (error) {
+    console.error("Error reading rooms:", error);
+    res.status(500).json({
+      error: "Failed to read rooms",
+      details: error.message,
+    });
+  }
+});
+
+// Get all tasks
+app.get("/api/tasks", async (req, res) => {
+  try {
+    const { data: tasks, error } = await supabase
+      .from("tasks")
+      .select(`
+        *,
+        patients (name, patient_id),
+        rooms (id)
+      `)
+      .order("time", { ascending: true });
+
+    if (error) throw error;
+
+    res.json(tasks);
+  } catch (error) {
+    console.error("Error reading tasks:", error);
+    res.status(500).json({
+      error: "Failed to read tasks",
+      details: error.message,
+    });
+  }
+});
+
+// Create a new task
+app.post("/api/tasks", async (req, res) => {
+  try {
+    const { patient_id, room_id, time, type, description, priority } = req.body;
+
+    const { data: task, error } = await supabase
+      .from("tasks")
+      .insert([
+        {
+          patient_id,
+          room_id,
+          time,
+          type,
+          description,
+          priority,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(task);
+  } catch (error) {
+    console.error("Error creating task:", error);
+    res.status(500).json({
+      error: "Failed to create task",
+      details: error.message,
+    });
+  }
+});
+
+// Update task completion status
+app.patch("/api/tasks/:id", async (req, res) => {
+  try {
+    const { completed } = req.body;
+
+    const { data: task, error } = await supabase
+      .from("tasks")
+      .update({ completed })
+      .eq("id", req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(task);
+  } catch (error) {
+    console.error("Error updating task:", error);
+    res.status(500).json({
+      error: "Failed to update task",
+      details: error.message,
+    });
+  }
+});
+
+// Get all logs
+app.get("/api/logs", async (req, res) => {
+  try {
+    const { data: logs, error } = await supabase
+      .from("logs")
+      .select("*")
+      .order("time", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    res.json(logs);
+  } catch (error) {
+    console.error("Error reading logs:", error);
+    res.status(500).json({
+      error: "Failed to read logs",
+      details: error.message,
+    });
+  }
+});
+
+// Create a new log entry
+app.post("/api/logs", async (req, res) => {
+  try {
+    const { nurse, room, action, details } = req.body;
+
+    const { data: log, error } = await supabase
+      .from("logs")
+      .insert([
+        {
+          nurse,
+          room,
+          action,
+          details,
+          time: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(log);
+  } catch (error) {
+    console.error("Error creating log:", error);
+    res.status(500).json({
+      error: "Failed to create log",
+      details: error.message,
+    });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Available AI providers:`);
+  console.log(`Available services:`);
   console.log(`- Claude: ${anthropic ? "✓" : "✗"}`);
   console.log(`- OpenAI: ${openai ? "✓" : "✗"}`);
+  console.log(
+    `- Supabase: ${process.env.SUPABASE_URL ? "✓" : "✗"}`
+  );
 });

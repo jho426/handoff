@@ -13,6 +13,7 @@ import {
   Edit3,
 } from "lucide-react";
 import FormattedHandoffNotes from "./FormattedHandoffNotes";
+import "./PatientDetail.css";
 
 const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
   const [handoffNotes, setHandoffNotes] = useState("");
@@ -195,18 +196,15 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     : patient.medical_history;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-5 h-5" />
+    <div className="patient-detail-container">
+      <button onClick={onBack} className="back-button">
+        <ArrowLeft className="action-button-icon" />
         Back to Patient List
       </button>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="patient-detail-grid">
         {/* Left Column - Patient Info */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="patient-info-column">
           {/* Patient Header */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-4">
@@ -217,59 +215,49 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                 Room {patient.room}
               </div>
             </div>
-            <div className="text-gray-600 space-y-2">
+            <div className="patient-details-text">
               <p>
                 {patientAge} • {patientSex}
               </p>
-              <p className="text-sm">
-                ID: {patient.patientId || patient.patient_id}
-              </p>
+              <p>ID: {patient.patientId || patient.patient_id}</p>
             </div>
           </div>
 
           {/* Chief Complaint */}
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 border border-red-100">
-            <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
+          <div className="chief-complaint-card">
+            <h3 className="chief-complaint-header">
+              <AlertCircle className="chief-complaint-icon" />
               Chief Complaint
             </h3>
-            <p className="text-gray-700">{chiefComplaint}</p>
+            <p className="chief-complaint-text">{chiefComplaint}</p>
           </div>
 
           {/* Patient Details */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">
-              Patient Information
-            </h3>
+          <div className="patient-info-card">
+            <h3 className="patient-info-title">Patient Information</h3>
 
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-semibold text-gray-600 mb-1">
-                  Code Status
-                </h4>
-                <p className="text-gray-800 font-medium">{codeStatus}</p>
+            <div className="info-section">
+              <div className="info-item">
+                <h4 className="info-label">Code Status</h4>
+                <p className="info-value">{codeStatus}</p>
               </div>
 
-              <div>
-                <h4 className="text-sm font-semibold text-gray-600 mb-1">
-                  Medical History
-                </h4>
-                <p className="text-gray-800">
+              <div className="info-item">
+                <h4 className="info-label">Medical History</h4>
+                <p className="info-value">
                   {medicalHistory || "None documented"}
                 </p>
               </div>
 
               {/* Vital Signs */}
               {patient.vitals && (
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-600 mb-2">
-                    Latest Vitals
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="info-item">
+                  <h4 className="info-label">Latest Vitals</h4>
+                  <div className="vitals-grid">
                     {patient.vitals.temp && (
-                      <div className="bg-blue-50 p-2 rounded">
-                        <span className="text-gray-600">Temp:</span>
-                        <span className="font-semibold ml-1">
+                      <div className="vital-item">
+                        <span className="vital-label">Temp:</span>
+                        <span className="vital-value">
                           {Array.isArray(patient.vitals.temp)
                             ? patient.vitals.temp[
                                 patient.vitals.temp.length - 1
@@ -280,9 +268,9 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                       </div>
                     )}
                     {patient.vitals.heartRate && (
-                      <div className="bg-red-50 p-2 rounded">
-                        <span className="text-gray-600">HR:</span>
-                        <span className="font-semibold ml-1">
+                      <div className="vital-item">
+                        <span className="vital-label">HR:</span>
+                        <span className="vital-value">
                           {Array.isArray(patient.vitals.heartRate)
                             ? patient.vitals.heartRate[
                                 patient.vitals.heartRate.length - 1
@@ -292,9 +280,9 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                       </div>
                     )}
                     {patient.vitals.bloodPressure && (
-                      <div className="bg-purple-50 p-2 rounded">
-                        <span className="text-gray-600">BP:</span>
-                        <span className="font-semibold ml-1">
+                      <div className="vital-item">
+                        <span className="vital-label">BP:</span>
+                        <span className="vital-value">
                           {Array.isArray(patient.vitals.bloodPressure)
                             ? patient.vitals.bloodPressure[
                                 patient.vitals.bloodPressure.length - 1
@@ -304,9 +292,9 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                       </div>
                     )}
                     {patient.vitals.oxygen && (
-                      <div className="bg-green-50 p-2 rounded">
-                        <span className="text-gray-600">O2:</span>
-                        <span className="font-semibold ml-1">
+                      <div className="vital-item">
+                        <span className="vital-label">O2:</span>
+                        <span className="vital-value">
                           {Array.isArray(patient.vitals.oxygen)
                             ? patient.vitals.oxygen[
                                 patient.vitals.oxygen.length - 1
@@ -322,41 +310,40 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
           </div>
 
           {/* AI Provider Badge */}
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-200">
-            <div className="flex items-center gap-2 text-sm">
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <span className="text-gray-700">
-                Using{" "}
-                <span className="font-semibold">
-                  {aiProvider === "claude" ? "Claude Sonnet 4" : "GPT-4o"}
-                </span>
+          <div className="ai-provider-badge">
+            <Sparkles className="ai-provider-icon" />
+            <span className="ai-provider-text">
+              Using{" "}
+              <span className="ai-provider-name">
+                {aiProvider === "claude" ? "Claude Sonnet 4" : "GPT-4o"}
               </span>
-            </div>
+            </span>
           </div>
         </div>
 
         {/* Right Column - Handoff Notes & Actions */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="handoff-column">
           {/* Action Buttons */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              Generate Handoff Notes
-            </h3>
+          <div className="action-card">
+            <h3 className="action-title">Generate Handoff Notes</h3>
 
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="action-buttons-grid">
               <button
                 onClick={generateHandoffNotes}
                 disabled={loading}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-lg hover:shadow-xl"
+                className="action-button"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2
+                      className="action-button-icon"
+                      style={{ animation: "spin 1s linear infinite" }}
+                    />
                     Generating...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles className="action-button-icon" />
                     Generate from Record
                   </>
                 )}
@@ -364,9 +351,9 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-lg hover:shadow-xl"
+                className="action-button"
               >
-                <Camera className="w-5 h-5" />
+                <Camera className="action-button-icon" />
                 Upload Handoff Image
               </button>
               <input
@@ -380,39 +367,42 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
             {/* Image Preview & Analysis */}
             {imagePreview && (
-              <div className="bg-gray-50 rounded-lg p-4 mb-4 border-2 border-dashed border-gray-300">
-                <div className="flex items-start gap-4">
-                  <div className="relative flex-shrink-0">
+              <div className="image-preview-container">
+                <div className="image-preview-content">
+                  <div className="image-preview-wrapper">
                     <img
                       src={imagePreview}
                       alt="Handoff document"
-                      className="w-32 h-32 object-cover rounded-lg border-2 border-gray-200"
+                      className="image-preview-img"
                     />
                     <button
                       onClick={clearImage}
-                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full transition-colors"
+                      className="image-remove-button"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="image-remove-icon" />
                     </button>
                   </div>
 
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600 mb-2">
+                  <div className="image-preview-info">
+                    <p className="image-preview-text">
                       Handoff document uploaded
                     </p>
                     <button
                       onClick={analyzeImage}
                       disabled={imageAnalysisLoading}
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                      className="analyze-button"
                     >
                       {imageAnalysisLoading ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2
+                            className="notes-action-icon"
+                            style={{ animation: "spin 1s linear infinite" }}
+                          />
                           Analyzing...
                         </>
                       ) : (
                         <>
-                          <FileText className="w-4 h-4" />
+                          <FileText className="notes-action-icon" />
                           Analyze & Add to Notes
                         </>
                       )}
@@ -424,69 +414,69 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
             {/* Status Messages */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="status-message error">
+                <AlertCircle className="status-icon" />
                 <div>
-                  <p className="text-red-800 font-medium">Error</p>
-                  <p className="text-red-600 text-sm">{error}</p>
+                  <p className="status-title">Error</p>
+                  <p className="status-text">{error}</p>
                 </div>
               </div>
             )}
 
             {success && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                <p className="text-green-700 font-medium">{success}</p>
+              <div className="status-message success">
+                <CheckCircle2 className="status-icon" />
+                <p className="status-title">{success}</p>
               </div>
             )}
           </div>
 
           {/* Handoff Notes Editor */}
           {handoffNotes && (
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <FileText className="w-6 h-6 text-blue-600" />
+            <div className="handoff-notes-card">
+              <div className="handoff-notes-header">
+                <h3 className="handoff-notes-title">
+                  <FileText className="handoff-notes-icon" />
                   Handoff Notes
                 </h3>
-                <div className="flex gap-2">
+                <div className="handoff-notes-actions">
                   {!isEditing ? (
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                      className="notes-action-button"
                     >
-                      <Edit3 className="w-4 h-4" />
+                      <Edit3 className="notes-action-icon" />
                       Edit
                     </button>
                   ) : (
                     <button
                       onClick={() => setIsEditing(false)}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                      className="notes-action-button"
                     >
                       Save changes
                     </button>
                   )}
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
-                  >
-                    <Copy className="w-4 h-4" />
+                  <button onClick={handleCopy} className="notes-action-button">
+                    <Copy className="notes-action-icon" />
                     {copied ? "Copied!" : "Copy"}
                   </button>
                   {isEditing && (
                     <button
                       onClick={saveHandoffNotes}
                       disabled={loading}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                      className="notes-action-button primary"
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2
+                            className="notes-action-icon"
+                            style={{ animation: "spin 1s linear infinite" }}
+                          />
                           Saving...
                         </>
                       ) : (
                         <>
-                          <Save className="w-4 h-4" />
+                          <Save className="notes-action-icon" />
                           Save
                         </>
                       )}
@@ -496,14 +486,12 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
               </div>
 
               {isEditing ? (
-                <div className="bg-white rounded-xl p-6 border-2 border-blue-400 shadow-lg">
-                  <textarea
-                    value={handoffNotes}
-                    onChange={(e) => setHandoffNotes(e.target.value)}
-                    className="w-full h-96 p-4 bg-gray-50 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-sm resize-none font-mono"
-                    placeholder="Edit your handoff notes here..."
-                  />
-                </div>
+                <textarea
+                  value={handoffNotes}
+                  onChange={(e) => setHandoffNotes(e.target.value)}
+                  className="notes-textarea"
+                  placeholder="Edit your handoff notes here..."
+                />
               ) : (
                 <FormattedHandoffNotes content={handoffNotes} />
               )}
@@ -512,12 +500,10 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
           {/* Empty State */}
           {!handoffNotes && (
-            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-300">
-              <Sparkles className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                No Handoff Notes Yet
-              </h3>
-              <p className="text-gray-600">
+            <div className="empty-state">
+              <Sparkles className="empty-state-icon" />
+              <h3 className="empty-state-title">No Handoff Notes Yet</h3>
+              <p className="empty-state-text">
                 Generate AI-powered handoff notes from the patient record or
                 upload a handoff document image to get started.
               </p>
