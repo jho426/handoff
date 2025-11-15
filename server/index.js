@@ -34,6 +34,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || ""
 );
 
+// Initialize Supabase admin client (requires service role key for admin operations)
+const supabaseAdmin = process.env.SUPABASE_SERVICE_KEY
+  ? createClient(
+      process.env.SUPABASE_URL || "",
+      process.env.SUPABASE_SERVICE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+  : null;
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({
@@ -425,6 +439,146 @@ app.get("/api/nurses", async (req, res) => {
     console.error("Error reading nurses:", error);
     res.status(500).json({
       error: "Failed to read nurses",
+      details: error.message,
+    });
+  }
+});
+
+// Create auth accounts for nurses in the database
+// This endpoint helps set up accounts for nurses that exist in the nurses table
+// but don't have Supabase Auth accounts yet
+// NOTE: Requires SUPABASE_SERVICE_KEY in environment variables
+app.post("/api/nurses/create-accounts", async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({
+        error: "Admin operations require SUPABASE_SERVICE_KEY to be set in environment variables",
+      });
+    }
+
+    // Get all nurses from the database
+    const { data: nurses, error: fetchError } = await supabase
+      .from("nurses")
+      .select("*");
+
+    if (fetchError) throw fetchError;
+
+    const results = [];
+    
+    for (const nurse of nurses) {
+      // Skip if nurse already has an auth_user_id
+      if (nurse.auth_user_id) {
+        results.push({
+          nurse_id: nurse.id,
+          email: nurse.email,
+          status: "skipped",
+          message: "Already has auth account",
+        });
+        continue;
+      }
+
+      // Check if auth user already exists with this email
+      const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+      
+      if (listError) {
+        results.push({
+          nurse_id: nurse.id,
+          email: nurse.email,
+          status: "error",
+          message: `Failed to list users: ${listError.message}`,
+        });
+        continue;
+      }
+
+      const existingUser = existingUsers?.users?.find(
+        (u) => u.email === nurse.email
+      );
+
+      if (existingUser) {
+        // Link existing auth user to nurse record
+        const { error: updateError } = await supabase
+          .from("nurses")
+          .update({ auth_user_id: existingUser.id })
+          .eq("id", nurse.id);
+
+        if (updateError) {
+          results.push({
+            nurse_id: nurse.id,
+            email: nurse.email,
+            status: "error",
+            message: `Failed to link: ${updateError.message}`,
+          });
+          continue;
+        }
+
+        results.push({
+          nurse_id: nurse.id,
+          email: nurse.email,
+          status: "linked",
+          message: "Linked to existing auth account",
+        });
+        continue;
+      }
+
+      // Create new auth account for nurse
+      // Generate a temporary password (nurse should change it on first login)
+      const tempPassword = `Temp${nurse.id}${Date.now()}`;
+      
+      const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: nurse.email,
+        password: tempPassword,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          name: nurse.name,
+          nurse_id: nurse.id,
+        },
+      });
+
+      if (createError) {
+        results.push({
+          nurse_id: nurse.id,
+          email: nurse.email,
+          status: "error",
+          message: createError.message,
+        });
+        continue;
+      }
+
+      // Link auth user ID to nurse record
+      const { error: linkError } = await supabase
+        .from("nurses")
+        .update({ auth_user_id: authUser.user.id })
+        .eq("id", nurse.id);
+
+      if (linkError) {
+        results.push({
+          nurse_id: nurse.id,
+          email: nurse.email,
+          status: "error",
+          message: `Account created but failed to link: ${linkError.message}`,
+          tempPassword: tempPassword,
+        });
+        continue;
+      }
+
+      results.push({
+        nurse_id: nurse.id,
+        email: nurse.email,
+        status: "created",
+        message: `Account created. Temporary password: ${tempPassword}`,
+        tempPassword: tempPassword,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Processed ${nurses.length} nurses`,
+      results,
+    });
+  } catch (error) {
+    console.error("Error creating nurse accounts:", error);
+    res.status(500).json({
+      error: "Failed to create nurse accounts",
       details: error.message,
     });
   }
