@@ -416,7 +416,11 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
       )
     );
 
-    console.log(`→ Task ${taskId} ${newCompleted ? 'completed' : 'uncompleted'} (optimistic)`);
+    console.log(
+      `→ Task ${taskId} ${
+        newCompleted ? "completed" : "uncompleted"
+      } (optimistic)`
+    );
 
     try {
       const response = await fetch(
@@ -490,7 +494,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                 <h2 className="patient-name">{patientName}</h2>
               )}
               <div className="room-badge">
-                <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                <div className="px-3 py-1 text-blue-700 rounded-full text-sm font-medium">
                   Room {patient.room}
                 </div>
                 {!isEditingPatient ? (
@@ -795,17 +799,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
               })()}
             </div>
           )}
-
-          {/* AI Provider Badge */}
-          <div className="ai-provider-badge">
-            <Sparkles className="ai-provider-icon" />
-            <span className="ai-provider-text">
-              Using{" "}
-              <span className="ai-provider-name">
-                {aiProvider === "claude" ? "Claude Sonnet 4" : "GPT-4o"}
-              </span>
-            </span>
-          </div>
         </div>
 
         {/* Right Column - Handoff Notes & Actions */}
