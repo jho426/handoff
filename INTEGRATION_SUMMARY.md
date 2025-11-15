@@ -10,7 +10,7 @@ Successfully integrated AI-powered patient analysis into the main Dashboard inte
 
 ### Entry Point
 **`App.jsx`** → **`Dashboard.jsx`** (Main Application)
-
+ 
 ### Component Flow
 ```
 Dashboard.jsx (Room View)

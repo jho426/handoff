@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FiGrid,
   FiList,
@@ -13,27 +13,136 @@ import TaskList from "./TaskList";
 import RouteMap from "./RouteMap";
 import PatientDetail from "./PatientDetail";
 import Logs from "./Logs";
-import { mockRooms } from "../data/mockData";
+import { supabase } from "../lib/supabase";
 import "./Dashboard.css";
 
 const Dashboard = () => {
-  const [view, setView] = useState("rooms"); // rooms, tasks, route, schedule
+  const [view, setView] = useState("rooms");
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [filterRisk, setFilterRisk] = useState("all");
   const [aiProvider, setAiProvider] = useState("claude");
+  
+  // State for Supabase data
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch rooms and patients from Supabase
+  useEffect(() => {
+    fetchRooms();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('rooms-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patients'
+        },
+        () => {
+          console.log('Patient data changed, refreshing...');
+          fetchRooms();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rooms'
+        },
+        () => {
+          console.log('Room data changed, refreshing...');
+          fetchRooms();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchRooms = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch rooms with patient data and tasks
+      const { data: roomsData, error: roomsError } = await supabase
+        .from('rooms')
+        .select(`
+          *,
+          patients (*)
+        `);
+
+      if (roomsError) throw roomsError;
+
+      // Fetch tasks for each room/patient
+      const roomsWithTasks = await Promise.all(
+        roomsData.map(async (room) => {
+          if (!room.patients) return room;
+
+          const { data: tasks } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('patient_id', room.patients.id)
+            .order('time', { ascending: true });
+
+          // Transform to match expected format
+          return {
+            id: room.id,
+            patient: {
+              name: room.patients.name,
+              age: room.patients.age,
+              mrn: room.patients.mrn,
+              admissionDate: room.patients.admission_date,
+              diagnosis: room.patients.diagnosis,
+              condition: room.patients.condition,
+              riskLevel: room.patients.risk_level,
+              lastVitals: room.patients.last_vitals || {},
+              medications: room.patients.medications || [],
+              allergies: room.patients.allergies || [],
+              codeStatus: room.patients.code_status || 'Full Code',
+            },
+            tasks: (tasks || []).map(task => ({
+              id: task.id,
+              time: task.time,
+              type: task.type,
+              description: task.description,
+              priority: task.priority,
+              completed: task.completed
+            })),
+            location: {
+              gridX: room.grid_x,
+              gridY: room.grid_y
+            }
+          };
+        })
+      );
+
+      setRooms(roomsWithTasks.filter(room => room.patient));
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching rooms:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredRooms =
     filterRisk === "all"
-      ? mockRooms
-      : mockRooms.filter((room) => room.patient.riskLevel === filterRisk);
+      ? rooms
+      : rooms.filter((room) => room.patient?.riskLevel === filterRisk);
 
   const riskCounts = {
-    all: mockRooms.length,
-    critical: mockRooms.filter((r) => r.patient.riskLevel === "critical")
-      .length,
-    high: mockRooms.filter((r) => r.patient.riskLevel === "high").length,
-    medium: mockRooms.filter((r) => r.patient.riskLevel === "medium").length,
-    low: mockRooms.filter((r) => r.patient.riskLevel === "low").length,
+    all: rooms.length,
+    critical: rooms.filter((r) => r.patient?.riskLevel === "critical").length,
+    high: rooms.filter((r) => r.patient?.riskLevel === "high").length,
+    medium: rooms.filter((r) => r.patient?.riskLevel === "medium").length,
+    low: rooms.filter((r) => r.patient?.riskLevel === "low").length,
   };
 
   // If patient selected, show PatientDetail instead of dashboard
@@ -72,8 +181,8 @@ const Dashboard = () => {
           aiProvider={aiProvider}
           onBack={() => setSelectedRoom(null)}
           onUpdate={(updated) => {
-            // Handle patient update if needed
             console.log("Patient updated:", updated);
+            fetchRooms(); // Refresh data
           }}
         />
       </div>
@@ -89,7 +198,7 @@ const Dashboard = () => {
         </div>
         <div className="header-stats">
           <div className="stat-card">
-            <div className="stat-value">{mockRooms.length}</div>
+            <div className="stat-value">{rooms.length}</div>
             <div className="stat-label">Active Rooms</div>
           </div>
           <div className="stat-card critical">
@@ -184,21 +293,43 @@ const Dashboard = () => {
       </nav>
 
       <main className="dashboard-main">
-        {view === "rooms" && (
-          <div className="rooms-grid">
-            {filteredRooms.map((room) => (
-              <RoomCard key={room.id} room={room} onSelect={setSelectedRoom} />
-            ))}
+        {loading && (
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading patient data...</p>
           </div>
         )}
 
-        {view === "tasks" && <TaskList />}
+        {error && (
+          <div className="error-state">
+            <p>Error loading data: {error}</p>
+            <button onClick={fetchRooms} className="retry-btn">
+              Retry
+            </button>
+          </div>
+        )}
 
-        {view === "route" && <RouteMap />}
+        {!loading && !error && view === "rooms" && (
+          <div className="rooms-grid">
+            {filteredRooms.length > 0 ? (
+              filteredRooms.map((room) => (
+                <RoomCard key={room.id} room={room} onSelect={setSelectedRoom} />
+              ))
+            ) : (
+              <div className="empty-state">
+                <p>No rooms found. Add patient data in Supabase to get started.</p>
+              </div>
+            )}
+          </div>
+        )}
 
-        {view === "schedule" && <NurseSchedule />}
+        {!loading && !error && view === "tasks" && <TaskList />}
 
-        {view === "logs" && <Logs />}
+        {!loading && !error && view === "route" && <RouteMap />}
+
+        {!loading && !error && view === "schedule" && <NurseSchedule />}
+
+        {!loading && !error && view === "logs" && <Logs />}
       </main>
     </div>
   );
