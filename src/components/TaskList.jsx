@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiClock, FiCheckCircle, FiAlertCircle, FiFilter, FiPlus } from 'react-icons/fi';
+import { FiClock, FiCheckCircle, FiAlertCircle, FiFilter, FiPlus, FiUser } from 'react-icons/fi';
 import { supabase } from '../lib/supabase';
 import AddPatientModal from './AddPatientModal';
 import './TaskList.css';
@@ -10,6 +10,33 @@ const TaskList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddPatientModal, setShowAddPatientModal] = useState(false);
+  const [showAssignedOnly, setShowAssignedOnly] = useState(false);
+  const [currentNurseId, setCurrentNurseId] = useState(null);
+
+  // Get current nurse ID on mount
+  useEffect(() => {
+    const getCurrentNurse = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Get nurse record
+          const { data: nurseData } = await supabase
+            .from('nurses')
+            .select('id')
+            .or(`email.eq.${session.user.email},auth_user_id.eq.${session.user.id}`)
+            .single();
+          
+          if (nurseData) {
+            setCurrentNurseId(nurseData.id);
+          }
+        }
+      } catch (err) {
+        console.error('Error getting current nurse:', err);
+      }
+    };
+    
+    getCurrentNurse();
+  }, []);
 
   // Fetch tasks from Supabase
   useEffect(() => {
@@ -27,6 +54,18 @@ const TaskList = () => {
         },
         (payload) => {
           console.log('Task changed:', payload);
+          fetchTasks();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_assignments'
+        },
+        () => {
+          console.log('Room assignments changed, refreshing tasks...');
           fetchTasks();
         }
       )
@@ -50,7 +89,10 @@ const TaskList = () => {
             patient_id
           ),
           rooms (
-            id
+            id,
+            room_assignments (
+              nurse_id
+            )
           )
         `)
         .order('time', { ascending: true });
@@ -66,7 +108,8 @@ const TaskList = () => {
         priority: task.priority,
         completed: task.completed,
         roomId: task.rooms?.id || task.room_id,
-        patientName: task.patients?.name || 'Unknown Patient'
+        patientName: task.patients?.name || 'Unknown Patient',
+        assignedNurseId: task.rooms?.room_assignments?.[0]?.nurse_id || null
       }));
 
       setAllTasks(formattedTasks);
@@ -111,9 +154,15 @@ const TaskList = () => {
     fetchTasks();
   };
 
+  // Filter by assigned nurse if filter is active
+  const tasksByAssignment = showAssignedOnly && currentNurseId
+    ? allTasks.filter(task => task.assignedNurseId === currentNurseId)
+    : allTasks;
+
+  // Filter by priority
   const filteredTasks = filter === 'all' 
-    ? allTasks 
-    : allTasks.filter(task => task.priority === filter);
+    ? tasksByAssignment 
+    : tasksByAssignment.filter(task => task.priority === filter);
 
   const sortedTasks = filteredTasks.sort((a, b) => {
     // Sort by priority first, then by time
@@ -131,15 +180,16 @@ const TaskList = () => {
     return null;
   };
 
+  // Calculate counts based on filtered tasks (by assignment)
   const taskCounts = {
-    all: allTasks.length,
-    critical: allTasks.filter(t => t.priority === 'critical').length,
-    high: allTasks.filter(t => t.priority === 'high').length,
-    medium: allTasks.filter(t => t.priority === 'medium').length,
+    all: tasksByAssignment.length,
+    critical: tasksByAssignment.filter(t => t.priority === 'critical').length,
+    high: tasksByAssignment.filter(t => t.priority === 'high').length,
+    medium: tasksByAssignment.filter(t => t.priority === 'medium').length,
   };
 
-  const completedCount = allTasks.filter(t => t.completed).length;
-  const remainingCount = allTasks.length - completedCount;
+  const completedCount = tasksByAssignment.filter(t => t.completed).length;
+  const remainingCount = tasksByAssignment.length - completedCount;
 
   if (loading) {
     return (
@@ -193,6 +243,14 @@ const TaskList = () => {
 
       <div className="task-filters">
         <FiFilter className="icon" />
+        <button 
+          className={`filter-btn ${showAssignedOnly ? 'active' : ''}`}
+          onClick={() => setShowAssignedOnly(!showAssignedOnly)}
+          title={showAssignedOnly ? 'Show all tasks' : 'Show only my assigned tasks'}
+        >
+          <FiUser style={{ width: '14px', height: '14px', marginRight: '6px', display: 'inline-block' }} />
+          My Patients
+        </button>
         <button 
           className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
           onClick={() => setFilter('all')}
@@ -267,7 +325,9 @@ const TaskList = () => {
       {sortedTasks.length === 0 && (
         <div className="empty-state">
           <p>
-            {filter === 'all'
+            {showAssignedOnly && currentNurseId
+              ? 'No tasks found for your assigned patients.'
+              : filter === 'all'
               ? 'No tasks available. Add tasks in Supabase to get started.'
               : 'No tasks found for the selected filter.'}
           </p>
