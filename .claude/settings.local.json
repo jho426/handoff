@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/Linds/Sites/handoff log --oneline -10)",
+      "Bash(npm install:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}
