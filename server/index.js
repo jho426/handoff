@@ -3,7 +3,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import multer from "multer";
 import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
 // Load environment variables
@@ -29,10 +28,6 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-
 // Initialize Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL || "",
@@ -45,7 +40,6 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     availableProviders: {
       claude: !!anthropic,
-      openai: !!openai,
       supabase: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
     },
   });
@@ -116,68 +110,6 @@ Format the output as a clear, organized summary suitable for nurse handoff. If a
   }
 );
 
-// Analyze handoff image with OpenAI
-app.post(
-  "/api/analyze-image/openai",
-  upload.single("image"),
-  async (req, res) => {
-    try {
-      if (!openai) {
-        return res.status(503).json({
-          error:
-            "OpenAI API is not configured. Please add OPENAI_API_KEY to .env file.",
-        });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ error: "No image file provided" });
-      }
-
-      const base64Image = req.file.buffer.toString("base64");
-      const mediaType = req.file.mimetype;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `You are a clinical nursing assistant analyzing a handoff document or whiteboard. Please extract and summarize the following information:
-
-1. Patient identifiers (name, room number, MRN if visible)
-2. Chief complaint or reason for admission
-3. Key vital signs or measurements
-4. Important medications or treatments
-5. Pending tasks or actions needed
-6. Any safety concerns or alerts
-
-Format the output as a clear, organized summary suitable for nurse handoff. If any information is unclear or not visible, note that. Keep the summary concise and focused on actionable items.`,
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mediaType};base64,${base64Image}`,
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: 2048,
-      });
-
-      const summary = response.choices[0].message.content;
-      res.json({ summary, provider: "openai" });
-    } catch (error) {
-      console.error("OpenAI API error:", error);
-      res.status(500).json({
-        error: "Failed to analyze image with OpenAI",
-        details: error.message,
-      });
-    }
-  }
-);
 
 // Summarize patient record with Claude
 app.post("/api/summarize-record/claude", async (req, res) => {
@@ -229,55 +161,6 @@ Provide a clear, actionable summary suitable for nurse-to-nurse handoff.`,
   }
 });
 
-// Summarize patient record with OpenAI
-app.post("/api/summarize-record/openai", async (req, res) => {
-  try {
-    if (!openai) {
-      return res.status(503).json({
-        error:
-          "OpenAI API is not configured. Please add OPENAI_API_KEY to .env file.",
-      });
-    }
-
-    const { patientData } = req.body;
-
-    if (!patientData) {
-      return res.status(400).json({ error: "No patient data provided" });
-    }
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: `You are a clinical nursing assistant. Please analyze this patient record and create a concise handoff summary for the incoming nurse. Focus on:
-
-1. Patient overview and chief complaint
-2. Current clinical status and vital signs
-3. Key lab/imaging findings and trends
-4. Active medications and treatments
-5. Pending orders or tasks
-6. Safety concerns (allergies, fall risk, code status, etc.)
-
-Patient Record:
-${JSON.stringify(patientData, null, 2)}
-
-Provide a clear, actionable summary suitable for nurse-to-nurse handoff.`,
-        },
-      ],
-      max_tokens: 2048,
-    });
-
-    const summary = response.choices[0].message.content;
-    res.json({ summary, provider: "openai" });
-  } catch (error) {
-    console.error("OpenAI API error:", error);
-    res.status(500).json({
-      error: "Failed to summarize record with OpenAI",
-      details: error.message,
-    });
-  }
-});
 
 // Get all patient records with room and task info
 app.get("/api/patients", async (req, res) => {
@@ -583,7 +466,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Available services:`);
   console.log(`- Claude: ${anthropic ? "✓" : "✗"}`);
-  console.log(`- OpenAI: ${openai ? "✓" : "✗"}`);
   console.log(
     `- Supabase: ${process.env.SUPABASE_URL ? "✓" : "✗"}`
   );

@@ -222,14 +222,6 @@ const Dashboard = () => {
                 >
                   Claude
                 </button>
-                <button
-                  onClick={() => setAiProvider("openai")}
-                  className={`provider-btn ${
-                    aiProvider === "openai" ? "active" : ""
-                  }`}
-                >
-                  OpenAI
-                </button>
               </div>
             </div>
           </div>

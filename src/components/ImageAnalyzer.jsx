@@ -102,7 +102,7 @@ const ImageAnalyzer = ({ aiProvider, onBack }) => {
           <h2 className="text-3xl font-bold text-gray-800">Analyze Handoff Document</h2>
           <div className="px-4 py-2 bg-blue-50 rounded-lg">
             <span className="text-sm text-blue-600 font-medium">
-              Using: {aiProvider === 'claude' ? 'Claude Sonnet 4' : 'GPT-4o'}
+              Using: Claude Sonnet 4
             </span>
           </div>
         </div>
@@ -153,7 +153,7 @@ const ImageAnalyzer = ({ aiProvider, onBack }) => {
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Analyzing with {aiProvider === 'claude' ? 'Claude' : 'OpenAI'}...
+                  Analyzing with Claude...
                 </>
               ) : (
                 <>

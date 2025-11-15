@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { FiMapPin, FiNavigation, FiClock, FiTrendingUp, FiMove } from 'react-icons/fi';
+import { FiNavigation, FiTrendingUp, FiMove, FiAlertCircle } from 'react-icons/fi';
 import { supabase } from '../lib/supabase';
 import './RouteMap.css';
 
@@ -115,6 +115,40 @@ const RouteMap = () => {
     }
   };
 
+  // Risk level priority order (higher number = higher priority)
+  const getRiskPriority = (riskLevel) => {
+    const priorityMap = {
+      'critical': 4,
+      'high': 3,
+      'medium': 2,
+      'low': 1
+    };
+    return priorityMap[riskLevel] || 0;
+  };
+
+  // Calculate priority-based route (most critical to least)
+  const calculatePriorityRoute = () => {
+    const roomsWithTasks = rooms.filter(room => room.tasks.length > 0);
+    if (roomsWithTasks.length === 0) return [];
+
+    // Sort by risk level (critical -> high -> medium -> low)
+    // Within same risk level, sort by number of high-priority tasks, then total tasks
+    return [...roomsWithTasks].sort((a, b) => {
+      const riskDiff = getRiskPriority(b.patient.riskLevel) - getRiskPriority(a.patient.riskLevel);
+      if (riskDiff !== 0) return riskDiff;
+
+      // If same risk level, prioritize by high-priority tasks
+      const aHighPriorityTasks = a.tasks.filter(t => t.priority === 'high').length;
+      const bHighPriorityTasks = b.tasks.filter(t => t.priority === 'high').length;
+      if (aHighPriorityTasks !== bHighPriorityTasks) {
+        return bHighPriorityTasks - aHighPriorityTasks;
+      }
+
+      // Then by total number of tasks
+      return b.tasks.length - a.tasks.length;
+    });
+  };
+
   // Calculate optimized route using simple nearest-neighbor algorithm
   const calculateOptimizedRoute = () => {
     const roomsWithTasks = rooms.filter(room => room.tasks.length > 0);
@@ -156,17 +190,12 @@ const RouteMap = () => {
 
   const optimizedRoute = calculateOptimizedRoute();
   const sequentialRoute = rooms.filter(room => room.tasks.length > 0);
-  const currentRoute = selectedRoute === 'optimized' ? optimizedRoute : sequentialRoute;
-
-  const calculateTotalDistance = (route) => {
-    let total = 0;
-    for (let i = 0; i < route.length - 1; i++) {
-      const dx = route[i + 1].position.gridX - route[i].position.gridX;
-      const dy = route[i + 1].position.gridY - route[i].position.gridY;
-      total += Math.sqrt(dx * dx + dy * dy) * GRID_SIZE;
-    }
-    return Math.round(total);
-  };
+  const priorityRoute = calculatePriorityRoute();
+  
+  const currentRoute = 
+    selectedRoute === 'optimized' ? optimizedRoute :
+    selectedRoute === 'priority' ? priorityRoute :
+    sequentialRoute;
 
   const handleMouseDown = (e, room) => {
     e.preventDefault();
@@ -253,9 +282,6 @@ const RouteMap = () => {
     }
   }, [draggedRoom, handleMouseMove, handleMouseUp]);
 
-  const totalDistance = calculateTotalDistance(currentRoute);
-  const timeEstimate = Math.round(totalDistance / 50); // ~50 pixels per minute
-
   const isInRoute = (roomId) => {
     return currentRoute.some(room => room.id === roomId);
   };
@@ -297,6 +323,13 @@ const RouteMap = () => {
         </div>
         <div className="route-controls">
           <button 
+            className={`route-btn ${selectedRoute === 'priority' ? 'active' : ''}`}
+            onClick={() => setSelectedRoute('priority')}
+          >
+            <FiAlertCircle className="icon" />
+            Priority
+          </button>
+          <button 
             className={`route-btn ${selectedRoute === 'optimized' ? 'active' : ''}`}
             onClick={() => setSelectedRoute('optimized')}
           >
@@ -311,41 +344,6 @@ const RouteMap = () => {
             Sequential
           </button>
         </div>
-      </div>
-
-      <div className="route-stats">
-        <div className="route-stat">
-          <FiMapPin className="icon" />
-          <div>
-            <div className="stat-value">{currentRoute.length}</div>
-            <div className="stat-label">Stops</div>
-          </div>
-        </div>
-        <div className="route-stat">
-          <FiNavigation className="icon" />
-          <div>
-            <div className="stat-value">{totalDistance}m</div>
-            <div className="stat-label">Total Distance</div>
-          </div>
-        </div>
-        <div className="route-stat">
-          <FiClock className="icon" />
-          <div>
-            <div className="stat-value">{timeEstimate} min</div>
-            <div className="stat-label">Est. Time</div>
-          </div>
-        </div>
-        {selectedRoute === 'optimized' && sequentialRoute.length > 0 && (
-          <div className="route-stat optimized">
-            <FiTrendingUp className="icon" />
-            <div>
-              <div className="stat-value">
-                {Math.max(0, Math.round(((calculateTotalDistance(sequentialRoute) - totalDistance) / calculateTotalDistance(sequentialRoute)) * 100))}%
-              </div>
-              <div className="stat-label">Time Saved</div>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="floor-plan-container">
