@@ -39,7 +39,7 @@ const Dashboard = () => {
   // If patient selected, show PatientDetail instead of dashboard
   if (selectedRoom) {
     return (
-      <div style={{ minHeight: '100vh', padding: 'var(--spacing-xl)' }}>
+      <div style={{ minHeight: '100vh', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-bg-secondary)' }}>
         <PatientDetail
           patient={{
             patientId: selectedRoom.patient.mrn,
