@@ -413,16 +413,22 @@ app.patch("/api/patients/:id", async (req, res) => {
 
     // Update patient
     const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (age !== undefined) updateData.age = age;
-    if (sex !== undefined) updateData.sex = sex;
-    if (codeStatus !== undefined) updateData.code_status = codeStatus;
-    if (chiefComplaint !== undefined) updateData.condition = chiefComplaint;
-    if (medications !== undefined) updateData.medications = medications;
-    if (allergies !== undefined) updateData.allergies = allergies;
+    if (name !== undefined && name !== null) updateData.name = name;
+    if (age !== undefined && age !== null) updateData.age = age;
+    if (sex !== undefined && sex !== null) {
+      updateData.sex = sex;
+      console.log("Including sex in update:", sex);
+    } else {
+      console.log("Sex not included - value:", sex, "type:", typeof sex);
+    }
+    if (codeStatus !== undefined && codeStatus !== null) updateData.code_status = codeStatus;
+    if (chiefComplaint !== undefined && chiefComplaint !== null) updateData.condition = chiefComplaint;
+    if (medications !== undefined && medications !== null) updateData.medications = medications;
+    if (allergies !== undefined && allergies !== null) updateData.allergies = allergies;
     updateData.updated_at = new Date().toISOString();
 
     console.log("Update payload:", updateData);
+    console.log("Sex field in updateData:", updateData.sex);
 
     const { data: updatedPatient, error: updateError } = await supabase
       .from("patients")
@@ -433,6 +439,8 @@ app.patch("/api/patients/:id", async (req, res) => {
 
     console.log("Update result:", updatedPatient);
     console.log("Update error:", updateError);
+    console.log("Updated patient sex value:", updatedPatient?.sex);
+    console.log("Database update successful:", !updateError);
 
     if (updateError) {
       console.error("Update failed:", updateError);

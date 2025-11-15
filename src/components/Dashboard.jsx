@@ -139,6 +139,7 @@ const Dashboard = () => {
             patient: {
               name: room.patients.name,
               age: room.patients.age,
+              sex: room.patients.sex,
               mrn: room.patients.mrn,
               admissionDate: room.patients.admission_date,
               diagnosis: room.patients.diagnosis,

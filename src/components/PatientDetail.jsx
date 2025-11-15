@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
   Loader2,
@@ -33,22 +33,31 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
   const [isEditingPatient, setIsEditingPatient] = useState(false);
   const [editedPatient, setEditedPatient] = useState({});
   const [tasks, setTasks] = useState([]);
+  const [currentPatient, setCurrentPatient] = useState(patient);
 
   const fileInputRef = useRef(null);
   const isGeneratingRef = useRef(false); // Track if we're generating/saving notes
   const isUpdatingTasksRef = useRef(false); // Track if we're updating tasks
+  const justSavedRef = useRef(false); // Track if we just saved patient info
 
   useEffect(() => {
-    const notes = patient.handoffNotes || patient.handoff_notes || "";
-    const analysis = patient.imageAnalysis || patient.image_analysis || "";
+    // Update current patient when prop changes (but not during local edits or right after saving)
+    if (!isEditingPatient && !justSavedRef.current) {
+      setCurrentPatient(patient);
+    }
+    // Reset the flag after a delay to prevent prop sync from overwriting
+    if (justSavedRef.current) {
+      const timer = setTimeout(() => {
+        justSavedRef.current = false;
+        console.log("✓ justSavedRef reset - prop sync can resume");
+      }, 1000); // Increased delay to 1 second
+      return () => clearTimeout(timer);
+    }
+  }, [patient, isEditingPatient]);
 
-    console.log("=== LOADING PATIENT DATA ===");
-    console.log("Patient:", patient);
-    console.log("Handoff notes from patient:", notes);
-    console.log("Handoff notes length:", notes.length);
-    console.log("Image analysis from patient:", analysis);
-    console.log("Image analysis length:", analysis.length);
-    console.log("Is generating?", isGeneratingRef.current);
+  useEffect(() => {
+    const notes = currentPatient.handoffNotes || currentPatient.handoff_notes || "";
+    const analysis = currentPatient.imageAnalysis || currentPatient.image_analysis || "";
 
     // Don't overwrite notes if we're in the middle of generating/saving
     if (!isGeneratingRef.current) {
@@ -60,23 +69,23 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
     // Don't overwrite tasks if we're in the middle of updating them
     if (!isUpdatingTasksRef.current) {
-      setTasks(patient.tasks || []);
+      setTasks(currentPatient.tasks || []);
     } else {
       console.log("⚠ Skipping tasks update - task update in progress");
     }
     setEditedPatient({
-      name: patient.demographics?.name || patient.patient_name || "",
-      age: patient.demographics?.age || patient.age || "",
-      sex: patient.demographics?.sex || patient.sex || "",
-      codeStatus: patient.demographics?.codeStatus || patient.code_status || "",
-      chiefComplaint: patient.chiefComplaint || patient.chief_complaint || "",
-      medications: patient.medications || [],
-      allergies: patient.allergies || [],
+      name: currentPatient.demographics?.name || currentPatient.patient_name || "",
+      age: currentPatient.demographics?.age || currentPatient.age || "",
+      sex: currentPatient.demographics?.sex || currentPatient.sex || "",
+      codeStatus: currentPatient.demographics?.codeStatus || currentPatient.code_status || "",
+      chiefComplaint: currentPatient.chiefComplaint || currentPatient.chief_complaint || "",
+      medications: currentPatient.medications || [],
+      allergies: currentPatient.allergies || [],
     });
 
     console.log("✓ Notes loaded into state");
     console.log("=== END LOADING ===");
-  }, [patient]);
+  }, [currentPatient]);
 
   // Generate AI handoff notes from patient record
   const generateHandoffNotes = async () => {
@@ -349,8 +358,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      console.error("=== FRONTEND: SAVE ERROR ===");
-      console.error("Error:", err);
       setError(err.message || "Failed to save handoff notes");
       isGeneratingRef.current = false; // Reset on error
     } finally {
@@ -363,11 +370,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     setLoading(true);
     setError("");
 
-    const patientId = patient.patientId || patient.patient_id;
-
-    console.log("=== FRONTEND: SAVING PATIENT INFO ===");
-    console.log("Patient ID:", patientId);
-    console.log("Updated data:", editedPatient);
+    const patientId = currentPatient.patientId || currentPatient.patient_id || patient.patientId || patient.patient_id;
 
     try {
       const response = await fetch(
@@ -379,8 +382,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
         }
       );
 
-      console.log("Response status:", response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Response error:", errorData);
@@ -388,14 +389,47 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
       }
 
       const responseData = await response.json();
-      console.log("Response data:", responseData);
-      console.log("✓ Patient info saved successfully!");
 
-      setSuccess("Patient information updated successfully!");
+      // Update local state immediately to reflect changes
+      // Use the server response data to ensure we have the actual saved values
+      const serverPatient = responseData.patient || {};
+      const updatedPatient = {
+        ...currentPatient,
+        patientId: currentPatient.patientId || patient.patientId,
+        patient_id: currentPatient.patient_id || patient.patient_id || serverPatient.id,
+        room: currentPatient.room || patient.room,
+        demographics: {
+          ...(currentPatient.demographics || {}),
+          name: serverPatient.name || editedPatient.name,
+          age: serverPatient.age || editedPatient.age,
+          sex: serverPatient.sex || editedPatient.sex,
+          codeStatus: serverPatient.code_status || editedPatient.codeStatus,
+        },
+        chiefComplaint: serverPatient.condition || editedPatient.chiefComplaint,
+        medications: serverPatient.medications || editedPatient.medications || [],
+        allergies: serverPatient.allergies || editedPatient.allergies || [],
+        // Also update top-level fields for compatibility
+        name: serverPatient.name || editedPatient.name,
+        age: serverPatient.age || editedPatient.age,
+        sex: serverPatient.sex || editedPatient.sex,
+        code_status: serverPatient.code_status || editedPatient.codeStatus,
+        condition: serverPatient.condition || editedPatient.chiefComplaint,
+      };
+      
+      // Prevent prop sync from overwriting our changes
+      justSavedRef.current = true;
+      
+      // Update state immediately
+      setCurrentPatient(updatedPatient);
       setIsEditingPatient(false);
-
+      setSuccess("Patient information updated successfully!");
+      
+      // Call onUpdate with the updated patient
       if (onUpdate) {
-        onUpdate({ ...patient, ...editedPatient });
+        // Use setTimeout to ensure state update completes first
+        setTimeout(() => {
+          onUpdate(updatedPatient);
+        }, 0);
       }
 
       setTimeout(() => setSuccess(""), 3000);
@@ -474,14 +508,34 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     }
   };
 
-  const patientName = patient.demographics?.name || patient.patient_name;
-  const patientAge = patient.demographics?.age || patient.age;
-  const patientSex = patient.demographics?.sex || patient.sex;
-  const chiefComplaint = patient.chiefComplaint || patient.chief_complaint;
-  const codeStatus = patient.demographics?.codeStatus || patient.code_status;
-  const medicalHistory = Array.isArray(patient.demographics?.history)
-    ? patient.demographics.history.join(", ")
-    : patient.medical_history;
+  // Use useMemo to ensure these values recalculate when currentPatient changes
+  // Depend on currentPatient itself so any change triggers recalculation
+  const patientName = useMemo(() => 
+    currentPatient.demographics?.name || currentPatient.patient_name || "",
+    [currentPatient]
+  );
+  const patientAge = useMemo(() => 
+    currentPatient.demographics?.age || currentPatient.age || "",
+    [currentPatient]
+  );
+  const patientSex = useMemo(() => 
+    currentPatient.demographics?.sex || currentPatient.sex || "",
+    [currentPatient]
+  );
+  const chiefComplaint = useMemo(() => 
+    currentPatient.chiefComplaint || currentPatient.chief_complaint || "",
+    [currentPatient]
+  );
+  const codeStatus = useMemo(() => 
+    currentPatient.demographics?.codeStatus || currentPatient.code_status || "",
+    [currentPatient]
+  );
+  const medicalHistory = useMemo(() => 
+    Array.isArray(currentPatient.demographics?.history)
+      ? currentPatient.demographics.history.join(", ")
+      : currentPatient.medical_history || "",
+    [currentPatient]
+  );
 
   return (
     <div className="patient-detail-container">
@@ -509,7 +563,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                 <h2 className="patient-name">{patientName}</h2>
               )}
               <div className="patient-header-actions">
-                <div className="room-badge">Room {patient.room}</div>
+                <div className="room-badge">Room {currentPatient.room || patient.room}</div>
                 {!isEditingPatient ? (
                   <button
                     onClick={() => setIsEditingPatient(true)}
@@ -577,7 +631,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                   </>
                 )}
               </p>
-              <p>ID: {patient.patientId || patient.patient_id}</p>
+              <p>ID: {currentPatient.patientId || currentPatient.patient_id || patient.patientId || patient.patient_id}</p>
             </div>
           </div>
 
@@ -636,56 +690,56 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
               </div>
 
               {/* Vital Signs */}
-              {patient.vitals && (
+              {(currentPatient.vitals || patient.vitals) && (
                 <div className="info-item">
                   <h4 className="info-label">Latest Vitals</h4>
                   <div className="vitals-grid">
-                    {patient.vitals.temp && (
+                    {(currentPatient.vitals?.temp || patient.vitals?.temp) && (
                       <div className="vital-item">
                         <span className="vital-label">Temp:</span>
                         <span className="vital-value">
-                          {Array.isArray(patient.vitals.temp)
-                            ? patient.vitals.temp[
-                                patient.vitals.temp.length - 1
+                          {Array.isArray(currentPatient.vitals?.temp || patient.vitals?.temp)
+                            ? (currentPatient.vitals?.temp || patient.vitals?.temp)[
+                                (currentPatient.vitals?.temp || patient.vitals?.temp).length - 1
                               ]
-                            : patient.vitals.temp}
+                            : currentPatient.vitals?.temp || patient.vitals?.temp}
                           °C
                         </span>
                       </div>
                     )}
-                    {patient.vitals.heartRate && (
+                    {(currentPatient.vitals?.heartRate || patient.vitals?.heartRate) && (
                       <div className="vital-item">
                         <span className="vital-label">HR:</span>
                         <span className="vital-value">
-                          {Array.isArray(patient.vitals.heartRate)
-                            ? patient.vitals.heartRate[
-                                patient.vitals.heartRate.length - 1
+                          {Array.isArray(currentPatient.vitals?.heartRate || patient.vitals?.heartRate)
+                            ? (currentPatient.vitals?.heartRate || patient.vitals?.heartRate)[
+                                (currentPatient.vitals?.heartRate || patient.vitals?.heartRate).length - 1
                               ]
-                            : patient.vitals.heartRate}
+                            : currentPatient.vitals?.heartRate || patient.vitals?.heartRate}
                         </span>
                       </div>
                     )}
-                    {patient.vitals.bloodPressure && (
+                    {(currentPatient.vitals?.bloodPressure || patient.vitals?.bloodPressure) && (
                       <div className="vital-item">
                         <span className="vital-label">BP:</span>
                         <span className="vital-value">
-                          {Array.isArray(patient.vitals.bloodPressure)
-                            ? patient.vitals.bloodPressure[
-                                patient.vitals.bloodPressure.length - 1
+                          {Array.isArray(currentPatient.vitals?.bloodPressure || patient.vitals?.bloodPressure)
+                            ? (currentPatient.vitals?.bloodPressure || patient.vitals?.bloodPressure)[
+                                (currentPatient.vitals?.bloodPressure || patient.vitals?.bloodPressure).length - 1
                               ]
-                            : patient.vitals.bloodPressure}
+                            : currentPatient.vitals?.bloodPressure || patient.vitals?.bloodPressure}
                         </span>
                       </div>
                     )}
-                    {patient.vitals.oxygen && (
+                    {(currentPatient.vitals?.oxygen || patient.vitals?.oxygen) && (
                       <div className="vital-item">
                         <span className="vital-label">O2:</span>
                         <span className="vital-value">
-                          {Array.isArray(patient.vitals.oxygen)
-                            ? patient.vitals.oxygen[
-                                patient.vitals.oxygen.length - 1
+                          {Array.isArray(currentPatient.vitals?.oxygen || patient.vitals?.oxygen)
+                            ? (currentPatient.vitals?.oxygen || patient.vitals?.oxygen)[
+                                (currentPatient.vitals?.oxygen || patient.vitals?.oxygen).length - 1
                               ]
-                            : patient.vitals.oxygen}
+                            : currentPatient.vitals?.oxygen || patient.vitals?.oxygen}
                         </span>
                       </div>
                     )}
