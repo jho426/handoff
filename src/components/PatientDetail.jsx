@@ -206,12 +206,12 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
         {/* Left Column - Patient Info */}
         <div className="patient-info-column">
           {/* Patient Header */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">
+          <div className="patient-header-card">
+            <div className="patient-header-top">
+              <h2 className="patient-name">
                 {patientName}
               </h2>
-              <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+              <div className="room-badge">
                 Room {patient.room}
               </div>
             </div>
