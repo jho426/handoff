@@ -215,22 +215,6 @@ const Dashboard = () => {
             <div className="stat-value">{riskCounts.high}</div>
             <div className="stat-label">High Risk</div>
           </div>
-          <div className="stat-card ai-provider">
-            <div className="ai-provider-selector">
-              <FiSettings className="icon" />
-              <div className="stat-label">AI Provider</div>
-              <div className="provider-buttons">
-                <button
-                  onClick={() => setAiProvider("claude")}
-                  className={`provider-btn ${
-                    aiProvider === "claude" ? "active" : ""
-                  }`}
-                >
-                  Claude
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </header>
 
