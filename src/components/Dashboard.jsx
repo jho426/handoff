@@ -105,6 +105,9 @@ const Dashboard = () => {
               medications: room.patients.medications || [],
               allergies: room.patients.allergies || [],
               codeStatus: room.patients.code_status || 'Full Code',
+              handoffNotes: room.patients.handoff_notes || '',
+              imageAnalysis: room.patients.image_analysis || '',
+              lastHandoffUpdate: room.patients.last_handoff_update,
             },
             tasks: (tasks || []).map(task => ({
               id: task.id,
@@ -177,6 +180,9 @@ const Dashboard = () => {
             medications: selectedRoom.patient.medications,
             allergies: selectedRoom.patient.allergies,
             tasks: selectedRoom.tasks,
+            handoffNotes: selectedRoom.patient.handoffNotes || '',
+            imageAnalysis: selectedRoom.patient.imageAnalysis || '',
+            lastHandoffUpdate: selectedRoom.patient.lastHandoffUpdate,
           }}
           aiProvider={aiProvider}
           onBack={() => setSelectedRoom(null)}

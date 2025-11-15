@@ -26,11 +26,36 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [imageAnalysis, setImageAnalysis] = useState("");
+  const [isEditingPatient, setIsEditingPatient] = useState(false);
+  const [editedPatient, setEditedPatient] = useState({});
 
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    setHandoffNotes(patient.handoffNotes || patient.handoff_notes || "");
+    const notes = patient.handoffNotes || patient.handoff_notes || "";
+    const analysis = patient.imageAnalysis || patient.image_analysis || "";
+
+    console.log("=== LOADING PATIENT DATA ===");
+    console.log("Patient:", patient);
+    console.log("Handoff notes from patient:", notes);
+    console.log("Handoff notes length:", notes.length);
+    console.log("Image analysis from patient:", analysis);
+    console.log("Image analysis length:", analysis.length);
+
+    setHandoffNotes(notes);
+    setImageAnalysis(analysis);
+    setEditedPatient({
+      name: patient.demographics?.name || patient.patient_name || "",
+      age: patient.demographics?.age || patient.age || "",
+      sex: patient.demographics?.sex || patient.sex || "",
+      codeStatus: patient.demographics?.codeStatus || patient.code_status || "",
+      chiefComplaint: patient.chiefComplaint || patient.chief_complaint || "",
+      medications: patient.medications || [],
+      allergies: patient.allergies || [],
+    });
+
+    console.log("✓ Notes loaded into state");
+    console.log("=== END LOADING ===");
   }, [patient]);
 
   // Generate AI handoff notes from patient record
@@ -140,25 +165,46 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     setLoading(true);
     setError("");
 
+    const patientId = patient.patientId || patient.patient_id;
+    const requestData = {
+      handoffNotes,
+      imageAnalysis,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log("=== FRONTEND: SAVING HANDOFF NOTES ===");
+    console.log("Patient ID being sent:", patientId);
+    console.log("Patient object:", patient);
+    console.log("Request URL:", `http://localhost:3001/api/patients/${patientId}/handoff`);
+    console.log("Request data:", {
+      handoffNotesLength: handoffNotes?.length || 0,
+      imageAnalysisLength: imageAnalysis?.length || 0,
+      timestamp: requestData.timestamp,
+    });
+
     try {
       const response = await fetch(
-        `http://localhost:3001/api/patients/${
-          patient.patientId || patient.patient_id
-        }/handoff`,
+        `http://localhost:3001/api/patients/${patientId}/handoff`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            handoffNotes,
-            imageAnalysis,
-            timestamp: new Date().toISOString(),
-          }),
+          body: JSON.stringify(requestData),
         }
       );
 
+      console.log("Response status:", response.status);
+      console.log("Response OK:", response.ok);
+
       if (!response.ok) {
-        throw new Error("Failed to save handoff notes");
+        const errorData = await response.json();
+        console.error("Response error data:", errorData);
+        throw new Error(errorData.error || "Failed to save handoff notes");
       }
+
+      const responseData = await response.json();
+      console.log("Response data:", responseData);
+      console.log("✓ Handoff notes saved successfully!");
+      console.log("=== END FRONTEND SAVE ===");
 
       setSuccess("Handoff notes saved successfully!");
       setIsEditing(false);
@@ -173,7 +219,60 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
+      console.error("=== FRONTEND: SAVE ERROR ===");
+      console.error("Error:", err);
+      console.error("Error message:", err.message);
       setError(err.message || "Failed to save handoff notes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Save patient information updates
+  const savePatientInfo = async () => {
+    setLoading(true);
+    setError("");
+
+    const patientId = patient.patientId || patient.patient_id;
+
+    console.log("=== FRONTEND: SAVING PATIENT INFO ===");
+    console.log("Patient ID:", patientId);
+    console.log("Updated data:", editedPatient);
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/patients/${patientId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(editedPatient),
+        }
+      );
+
+      console.log("Response status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Response error:", errorData);
+        throw new Error(errorData.error || "Failed to update patient info");
+      }
+
+      const responseData = await response.json();
+      console.log("Response data:", responseData);
+      console.log("✓ Patient info saved successfully!");
+
+      setSuccess("Patient information updated successfully!");
+      setIsEditingPatient(false);
+
+      if (onUpdate) {
+        onUpdate({ ...patient, ...editedPatient });
+      }
+
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error("=== FRONTEND: PATIENT UPDATE ERROR ===");
+      console.error("Error:", err);
+      setError(err.message || "Failed to update patient information");
     } finally {
       setLoading(false);
     }
@@ -208,16 +307,56 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
           {/* Patient Header */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">
-                {patientName}
-              </h2>
-              <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                Room {patient.room}
+              {isEditingPatient ? (
+                <input
+                  type="text"
+                  value={editedPatient.name}
+                  onChange={(e) => setEditedPatient({...editedPatient, name: e.target.value})}
+                  className="text-2xl font-bold text-gray-800 border-b-2 border-blue-500 outline-none bg-transparent"
+                />
+              ) : (
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {patientName}
+                </h2>
+              )}
+              <div className="flex gap-2">
+                <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  Room {patient.room}
+                </div>
+                {!isEditingPatient ? (
+                  <button onClick={() => setIsEditingPatient(true)} className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-medium transition-colors">
+                    <Edit3 className="w-4 h-4 inline mr-1" />
+                    Edit
+                  </button>
+                ) : (
+                  <button onClick={savePatientInfo} disabled={loading} className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-full text-sm font-medium transition-colors">
+                    <Save className="w-4 h-4 inline mr-1" />
+                    {loading ? "Saving..." : "Save"}
+                  </button>
+                )}
               </div>
             </div>
             <div className="patient-details-text">
               <p>
-                {patientAge} • {patientSex}
+                {isEditingPatient ? (
+                  <>
+                    <input
+                      type="number"
+                      value={editedPatient.age}
+                      onChange={(e) => setEditedPatient({...editedPatient, age: e.target.value})}
+                      className="w-16 border-b border-gray-300 outline-none mr-2"
+                    />
+                    •
+                    <input
+                      type="text"
+                      value={editedPatient.sex}
+                      onChange={(e) => setEditedPatient({...editedPatient, sex: e.target.value})}
+                      className="w-20 border-b border-gray-300 outline-none ml-2"
+                    />
+                  </>
+                ) : (
+                  <>{patientAge} • {patientSex}</>
+                )}
               </p>
               <p>ID: {patient.patientId || patient.patient_id}</p>
             </div>
@@ -229,7 +368,16 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
               <AlertCircle className="chief-complaint-icon" />
               Chief Complaint
             </h3>
-            <p className="chief-complaint-text">{chiefComplaint}</p>
+            {isEditingPatient ? (
+              <textarea
+                value={editedPatient.chiefComplaint}
+                onChange={(e) => setEditedPatient({...editedPatient, chiefComplaint: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500"
+                rows="2"
+              />
+            ) : (
+              <p className="chief-complaint-text">{chiefComplaint}</p>
+            )}
           </div>
 
           {/* Patient Details */}
@@ -239,7 +387,16 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
             <div className="info-section">
               <div className="info-item">
                 <h4 className="info-label">Code Status</h4>
-                <p className="info-value">{codeStatus}</p>
+                {isEditingPatient ? (
+                  <input
+                    type="text"
+                    value={editedPatient.codeStatus}
+                    onChange={(e) => setEditedPatient({...editedPatient, codeStatus: e.target.value})}
+                    className="info-value border-b border-gray-300 outline-none"
+                  />
+                ) : (
+                  <p className="info-value">{codeStatus}</p>
+                )}
               </div>
 
               <div className="info-item">

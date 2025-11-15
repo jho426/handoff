@@ -284,14 +284,16 @@ app.get("/api/patients", async (req, res) => {
   try {
     const { data: patients, error } = await supabase
       .from("patients")
-      .select(`
+      .select(
+        `
         *,
         rooms (
           id,
           grid_x,
           grid_y
         )
-      `)
+      `
+      )
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -327,7 +329,8 @@ app.get("/api/patients/:id", async (req, res) => {
   try {
     const { data: patient, error } = await supabase
       .from("patients")
-      .select(`
+      .select(
+        `
         *,
         rooms (
           id,
@@ -335,7 +338,8 @@ app.get("/api/patients/:id", async (req, res) => {
           grid_y
         ),
         tasks (*)
-      `)
+      `
+      )
       .eq("patient_id", req.params.id)
       .single();
 
@@ -356,44 +360,157 @@ app.get("/api/patients/:id", async (req, res) => {
   }
 });
 
+// Update patient information
+app.patch("/api/patients/:id", async (req, res) => {
+  try {
+    const { name, age, sex, codeStatus, chiefComplaint, medications, allergies } = req.body;
+
+    console.log("=== PATIENT UPDATE REQUEST ===");
+    console.log("Patient ID (from URL):", req.params.id);
+    console.log("Update data:", req.body);
+
+    // Find patient by mrn
+    const { data: patient, error: findError } = await supabase
+      .from("patients")
+      .select("id, mrn, patient_id")
+      .eq("mrn", req.params.id)
+      .single();
+
+    console.log("Patient found:", patient);
+    console.log("Find error:", findError);
+
+    if (findError || !patient) {
+      console.error("Patient not found");
+      return res.status(404).json({
+        error: "Patient not found",
+        searchedMRN: req.params.id,
+      });
+    }
+
+    // Update patient
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (age !== undefined) updateData.age = age;
+    if (sex !== undefined) updateData.sex = sex;
+    if (codeStatus !== undefined) updateData.code_status = codeStatus;
+    if (chiefComplaint !== undefined) updateData.condition = chiefComplaint;
+    if (medications !== undefined) updateData.medications = medications;
+    if (allergies !== undefined) updateData.allergies = allergies;
+    updateData.updated_at = new Date().toISOString();
+
+    console.log("Update payload:", updateData);
+
+    const { data: updatedPatient, error: updateError } = await supabase
+      .from("patients")
+      .update(updateData)
+      .eq("id", patient.id)
+      .select()
+      .single();
+
+    console.log("Update result:", updatedPatient);
+    console.log("Update error:", updateError);
+
+    if (updateError) {
+      console.error("Update failed:", updateError);
+      throw updateError;
+    }
+
+    console.log("✓ Patient updated successfully");
+    console.log("=== END PATIENT UPDATE ===");
+
+    res.json({
+      success: true,
+      message: "Patient information updated successfully",
+      patient: updatedPatient,
+    });
+  } catch (error) {
+    console.error("=== PATIENT UPDATE ERROR ===");
+    console.error("Error:", error);
+    res.status(500).json({
+      error: "Failed to update patient information",
+      details: error.message,
+    });
+  }
+});
+
 // Save handoff notes for a patient
 app.post("/api/patients/:id/handoff", async (req, res) => {
   try {
     const { handoffNotes, imageAnalysis, timestamp } = req.body;
 
-    // Find patient by patient_id
+    console.log("=== HANDOFF SAVE REQUEST ===");
+    console.log("Patient ID (from URL):", req.params.id);
+    console.log("Handoff notes length:", handoffNotes?.length || 0);
+    console.log("Image analysis length:", imageAnalysis?.length || 0);
+    console.log("Timestamp:", timestamp);
+
+    // Find patient by mrn (which is passed as :id)
+    console.log("Searching for patient with mrn:", req.params.id);
     const { data: patient, error: findError } = await supabase
       .from("patients")
-      .select("id")
-      .eq("patient_id", req.params.id)
+      .select("id, mrn, patient_id")
+      .eq("mrn", req.params.id)
       .single();
+
+    console.log("Patient search result:", patient);
+    console.log("Patient search error:", findError);
 
     if (findError || !patient) {
-      return res.status(404).json({ error: "Patient not found" });
+      console.error("Patient not found. Error:", findError);
+      return res.status(404).json({
+        error: "Patient not found",
+        searchedMRN: req.params.id,
+        supabaseError: findError
+      });
     }
 
-    // Update patient with handoff notes
+    console.log("Found patient:", {
+      id: patient.id,
+      mrn: patient.mrn,
+      patient_id: patient.patient_id
+    });
+
+    // Update patient with handoff notes using the database id
+    console.log("Updating patient with id:", patient.id);
+    const updatePayload = {
+      handoff_notes: handoffNotes,
+      image_analysis: imageAnalysis,
+      last_handoff_update: timestamp || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
     const { data: updatedPatient, error: updateError } = await supabase
       .from("patients")
-      .update({
-        handoff_notes: handoffNotes,
-        image_analysis: imageAnalysis,
-        last_handoff_update: timestamp || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", patient.id)
-      .select()
+      .select("handoff_notes, image_analysis, last_handoff_update")
       .single();
 
-    if (updateError) throw updateError;
+    console.log("Update result:", updatedPatient);
+    console.log("Update error:", updateError);
+
+    if (updateError) {
+      console.error("Update failed:", updateError);
+      throw updateError;
+    }
+
+    console.log("✓ Handoff notes saved successfully for patient:", patient.patient_id);
+    console.log("=== END HANDOFF SAVE ===");
 
     res.json({
       success: true,
       message: "Handoff notes saved successfully",
-      patient: updatedPatient,
+      handoffData: {
+        handoffNotes: updatedPatient.handoff_notes,
+        imageAnalysis: updatedPatient.image_analysis,
+        lastHandoffUpdate: updatedPatient.last_handoff_update,
+      },
     });
   } catch (error) {
+    console.error("=== HANDOFF SAVE ERROR ===");
     console.error("Error saving handoff notes:", error);
+    console.error("Error details:", error.message);
+    console.error("Error stack:", error.stack);
     res.status(500).json({
       error: "Failed to save handoff notes",
       details: error.message,
@@ -426,13 +543,15 @@ app.get("/api/rooms", async (req, res) => {
   try {
     const { data: rooms, error } = await supabase
       .from("rooms")
-      .select(`
+      .select(
+        `
         *,
         patients (*),
         room_assignments (
           nurses (*)
         )
-      `)
+      `
+      )
       .order("id", { ascending: true });
 
     if (error) throw error;
@@ -452,11 +571,13 @@ app.get("/api/tasks", async (req, res) => {
   try {
     const { data: tasks, error } = await supabase
       .from("tasks")
-      .select(`
+      .select(
+        `
         *,
         patients (name, patient_id),
         rooms (id)
-      `)
+      `
+      )
       .order("time", { ascending: true });
 
     if (error) throw error;
@@ -584,7 +705,5 @@ app.listen(PORT, () => {
   console.log(`Available services:`);
   console.log(`- Claude: ${anthropic ? "✓" : "✗"}`);
   console.log(`- OpenAI: ${openai ? "✓" : "✗"}`);
-  console.log(
-    `- Supabase: ${process.env.SUPABASE_URL ? "✓" : "✗"}`
-  );
+  console.log(`- Supabase: ${process.env.SUPABASE_URL ? "✓" : "✗"}`);
 });
