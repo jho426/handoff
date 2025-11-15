@@ -89,6 +89,13 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
     console.log("=== GENERATING NEW HANDOFF NOTES ===");
     console.log("Previous notes available:", !!previousNotes);
+    console.log("Using current task state with", tasks.length, "tasks");
+
+    // Use current task state instead of stale patient prop
+    const patientDataWithCurrentTasks = {
+      ...patient,
+      tasks: tasks, // Use current state, not stale prop
+    };
 
     try {
       const response = await fetch(
@@ -97,7 +104,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            patientData: patient,
+            patientData: patientDataWithCurrentTasks,
             previousNotes: previousNotes,
           }),
         }
@@ -143,6 +150,14 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     setError("");
     isGeneratingRef.current = true; // Mark as generating
 
+    console.log("Regenerating with current task state:", tasks.length, "tasks");
+
+    // Use current task state instead of stale patient prop
+    const patientDataWithCurrentTasks = {
+      ...patient,
+      tasks: tasks, // Use current state, not stale prop
+    };
+
     try {
       const response = await fetch(
         `http://localhost:3001/api/summarize-record/${aiProvider}`,
@@ -150,7 +165,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            patientData: patient,
+            patientData: patientDataWithCurrentTasks,
             previousNotes: handoffNotes,
             imageAnalysis: imageAnalysisText,
           }),

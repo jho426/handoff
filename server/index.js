@@ -798,18 +798,30 @@ app.post("/api/tasks", async (req, res) => {
 app.patch("/api/tasks/:id", async (req, res) => {
   try {
     const { completed } = req.body;
+    const taskId = req.params.id;
+
+    console.log("=== TASK UPDATE REQUEST ===");
+    console.log("Task ID:", taskId);
+    console.log("New completed status:", completed);
 
     const { data: task, error } = await supabase
       .from("tasks")
-      .update({ completed })
-      .eq("id", req.params.id)
+      .update({ completed, updated_at: new Date().toISOString() })
+      .eq("id", taskId)
       .select()
       .single();
 
+    console.log("Update result:", task);
+    console.log("Update error:", error);
+
     if (error) throw error;
+
+    console.log("✓ Task updated successfully");
+    console.log("=== END TASK UPDATE ===");
 
     res.json(task);
   } catch (error) {
+    console.error("=== TASK UPDATE ERROR ===");
     console.error("Error updating task:", error);
     res.status(500).json({
       error: "Failed to update task",
