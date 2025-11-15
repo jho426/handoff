@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FiClock, FiCheckCircle, FiAlertCircle, FiFilter } from 'react-icons/fi';
+import { FiClock, FiCheckCircle, FiAlertCircle, FiFilter, FiPlus } from 'react-icons/fi';
 import { supabase } from '../lib/supabase';
+import AddPatientModal from './AddPatientModal';
 import './TaskList.css';
 
 const TaskList = () => {
@@ -8,6 +9,7 @@ const TaskList = () => {
   const [allTasks, setAllTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAddPatientModal, setShowAddPatientModal] = useState(false);
 
   // Fetch tasks from Supabase
   useEffect(() => {
@@ -103,6 +105,12 @@ const TaskList = () => {
     }
   };
 
+  const handlePatientAdded = (newPatient) => {
+    console.log('New patient added:', newPatient);
+    // Refresh tasks since new patient may have tasks
+    fetchTasks();
+  };
+
   const filteredTasks = filter === 'all' 
     ? allTasks 
     : allTasks.filter(task => task.priority === filter);
@@ -173,6 +181,13 @@ const TaskList = () => {
             <span className="stat-value">{completedCount}</span>
             <span className="stat-label">Completed</span>
           </div>
+          <button
+            className="add-patient-btn"
+            onClick={() => setShowAddPatientModal(true)}
+          >
+            <FiPlus className="icon" />
+            Add New Patient
+          </button>
         </div>
       </div>
 
@@ -252,12 +267,19 @@ const TaskList = () => {
       {sortedTasks.length === 0 && (
         <div className="empty-state">
           <p>
-            {filter === 'all' 
-              ? 'No tasks available. Add tasks in Supabase to get started.' 
+            {filter === 'all'
+              ? 'No tasks available. Add tasks in Supabase to get started.'
               : 'No tasks found for the selected filter.'}
           </p>
         </div>
       )}
+
+      <AddPatientModal
+        isOpen={showAddPatientModal}
+        onClose={() => setShowAddPatientModal(false)}
+        onPatientAdded={handlePatientAdded}
+        aiProvider="claude"
+      />
     </div>
   );
 };

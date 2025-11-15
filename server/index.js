@@ -120,11 +120,72 @@ app.post("/api/summarize-record/claude", async (req, res) => {
       });
     }
 
-    const { patientData } = req.body;
+    const { patientData, previousNotes } = req.body;
 
     if (!patientData) {
       return res.status(400).json({ error: "No patient data provided" });
     }
+
+    // Extract task information
+    const tasks = patientData.tasks || [];
+    const completedTasks = tasks.filter(t => t.completed);
+    const pendingTasks = tasks.filter(t => !t.completed);
+
+    console.log("=== TASK SUMMARY ===");
+    console.log("Total tasks:", tasks.length);
+    console.log("Completed:", completedTasks.length);
+    console.log("Pending:", pendingTasks.length);
+
+    let promptContent = `You are a clinical nursing assistant. Please analyze this patient record and create a concise handoff summary for the incoming nurse. Focus on:
+
+1. Patient overview and chief complaint
+2. Current clinical status and vital signs
+3. Key lab/imaging findings and trends
+4. Active medications and treatments
+5. TASK STATUS - Completed and outstanding tasks (VERY IMPORTANT)
+6. Safety concerns (allergies, fall risk, code status, etc.)
+
+Patient Record:
+${JSON.stringify(patientData, null, 2)}
+
+TASK COMPLETION STATUS:
+- Total Tasks: ${tasks.length}
+- Completed Tasks: ${completedTasks.length}
+- Outstanding Tasks: ${pendingTasks.length}
+
+${completedTasks.length > 0 ? `COMPLETED TASKS (${completedTasks.length}):
+${completedTasks.map(t => `✓ ${t.time} - ${t.description} (${t.priority} priority, ${t.type})`).join('\n')}
+` : ''}
+${pendingTasks.length > 0 ? `OUTSTANDING TASKS (${pendingTasks.length}) - REQUIRES ATTENTION:
+${pendingTasks.map(t => `⚠ ${t.time} - ${t.description} (${t.priority} priority, ${t.type})`).join('\n')}
+` : ''}
+
+IMPORTANT: In your handoff summary, include a dedicated section for "Task Status" that clearly shows:
+- What tasks have been completed during this shift
+- What outstanding tasks remain and their priority
+- Any time-sensitive tasks that need immediate attention
+- Organize outstanding tasks by priority (critical → high → medium → low)`;
+
+    if (previousNotes) {
+      promptContent += `
+
+PREVIOUS HANDOFF NOTES:
+${previousNotes}
+
+IMPORTANT: Compare the current patient data with the previous handoff notes. In your summary:
+- Start with "## Changes Since Last Handoff" section highlighting what has changed (vitals, medications, status, new orders, tasks completed, etc.)
+- Use **CHANGED:** prefix for items that differ from previous notes
+- Use **NEW:** prefix for items not mentioned in previous notes
+- Use **RESOLVED:** prefix for issues that were in previous notes but are now resolved
+- Use **COMPLETED:** prefix for tasks that were pending in previous notes but are now done
+- Then provide the complete current handoff summary including task status
+
+This helps the incoming nurse quickly identify what's different and what requires immediate attention.`;
+    }
+
+    promptContent += `
+
+Provide a clear, actionable summary suitable for nurse-to-nurse handoff. Make task status prominent and easy to scan.`;
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -132,19 +193,7 @@ app.post("/api/summarize-record/claude", async (req, res) => {
       messages: [
         {
           role: "user",
-          content: `You are a clinical nursing assistant. Please analyze this patient record and create a concise handoff summary for the incoming nurse. Focus on:
-
-1. Patient overview and chief complaint
-2. Current clinical status and vital signs
-3. Key lab/imaging findings and trends
-4. Active medications and treatments
-5. Pending orders or tasks
-6. Safety concerns (allergies, fall risk, code status, etc.)
-
-Patient Record:
-${JSON.stringify(patientData, null, 2)}
-
-Provide a clear, actionable summary suitable for nurse-to-nurse handoff.`,
+          content: promptContent,
         },
       ],
     });
@@ -156,7 +205,7 @@ Provide a clear, actionable summary suitable for nurse-to-nurse handoff.`,
     res.status(500).json({
       error: "Failed to summarize record with Claude",
       details: error.message,
-    });
+      });
   }
 });
 
@@ -359,10 +408,41 @@ app.post("/api/patients/:id/handoff", async (req, res) => {
       patient_id: patient.patient_id,
     });
 
+    // Get current handoff notes to save as previous version
+    const { data: currentPatient } = await supabase
+      .from("patients")
+      .select("handoff_notes, handoff_notes_history")
+      .eq("id", patient.id)
+      .single();
+
+    console.log("Current handoff notes:", currentPatient?.handoff_notes);
+
+    // Build history array
+    let history = [];
+    if (currentPatient?.handoff_notes_history) {
+      history = Array.isArray(currentPatient.handoff_notes_history)
+        ? currentPatient.handoff_notes_history
+        : [];
+    }
+
+    // Add current version to history if it exists
+    if (currentPatient?.handoff_notes) {
+      history.unshift({
+        notes: currentPatient.handoff_notes,
+        timestamp: currentPatient.last_handoff_update || new Date().toISOString(),
+      });
+
+      // Keep only last 10 versions
+      if (history.length > 10) {
+        history = history.slice(0, 10);
+      }
+    }
+
     // Update patient with handoff notes using the database id
     console.log("Updating patient with id:", patient.id);
     const updatePayload = {
       handoff_notes: handoffNotes,
+      handoff_notes_history: history,
       image_analysis: imageAnalysis,
       last_handoff_update: timestamp || new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -372,7 +452,7 @@ app.post("/api/patients/:id/handoff", async (req, res) => {
       .from("patients")
       .update(updatePayload)
       .eq("id", patient.id)
-      .select("handoff_notes, image_analysis, last_handoff_update")
+      .select("handoff_notes, handoff_notes_history, image_analysis, last_handoff_update")
       .single();
 
     console.log("Update result:", updatedPatient);
@@ -394,6 +474,7 @@ app.post("/api/patients/:id/handoff", async (req, res) => {
       message: "Handoff notes saved successfully",
       handoffData: {
         handoffNotes: updatedPatient.handoff_notes,
+        handoffNotesHistory: updatedPatient.handoff_notes_history,
         imageAnalysis: updatedPatient.image_analysis,
         lastHandoffUpdate: updatedPatient.last_handoff_update,
       },
@@ -588,6 +669,218 @@ app.post("/api/logs", async (req, res) => {
     res.status(500).json({
       error: "Failed to create log",
       details: error.message,
+    });
+  }
+});
+
+// Create a new patient
+app.post("/api/patients", async (req, res) => {
+  try {
+    const {
+      name,
+      age,
+      sex,
+      mrn,
+      room,
+      diagnosis,
+      condition,
+      riskLevel,
+      codeStatus,
+      medications,
+      allergies,
+      admissionDate,
+      lastVitals,
+      gridX,
+      gridY
+    } = req.body;
+
+    console.log("=== CREATING NEW PATIENT ===");
+    console.log("Request body:", req.body);
+
+    // Validate required fields
+    if (!name || !mrn || !room) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields: name, mrn, and room are required",
+      });
+    }
+
+    // Check if MRN already exists
+    const { data: existingPatient } = await supabase
+      .from("patients")
+      .select("mrn")
+      .eq("mrn", mrn)
+      .single();
+
+    if (existingPatient) {
+      return res.status(400).json({
+        success: false,
+        error: "A patient with this MRN already exists",
+      });
+    }
+
+    // Create the patient
+    const patientData = {
+      name,
+      mrn,
+      age: age || null,
+      sex: sex || null,
+      diagnosis: diagnosis || null,
+      condition: condition || null,
+      risk_level: riskLevel || "medium",
+      code_status: codeStatus || "Full Code",
+      medications: medications || [],
+      allergies: allergies || [],
+      admission_date: admissionDate || new Date().toISOString(),
+      last_vitals: lastVitals || {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: newPatient, error: patientError } = await supabase
+      .from("patients")
+      .insert([patientData])
+      .select()
+      .single();
+
+    if (patientError) throw patientError;
+
+    console.log("Patient created:", newPatient);
+
+    // Create or update the room
+    const { data: existingRoom } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("id", room)
+      .single();
+
+    if (existingRoom) {
+      // Update existing room
+      const { error: roomUpdateError } = await supabase
+        .from("rooms")
+        .update({
+          patient_id: newPatient.id,
+          grid_x: gridX || 0,
+          grid_y: gridY || 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", room);
+
+      if (roomUpdateError) throw roomUpdateError;
+    } else {
+      // Create new room
+      const { error: roomCreateError } = await supabase
+        .from("rooms")
+        .insert([{
+          id: room,
+          patient_id: newPatient.id,
+          grid_x: gridX || 0,
+          grid_y: gridY || 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }]);
+
+      if (roomCreateError) throw roomCreateError;
+    }
+
+    console.log("Room created/updated for patient");
+
+    res.json({
+      success: true,
+      message: "Patient created successfully",
+      patient: newPatient,
+    });
+  } catch (error) {
+    console.error("Error creating patient:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to create patient",
+    });
+  }
+});
+
+// Extract structured patient data from AI summary
+app.post("/api/extract-patient-data/:provider", async (req, res) => {
+  try {
+    const { provider } = req.params;
+    const { summary } = req.body;
+
+    console.log("=== EXTRACTING PATIENT DATA ===");
+    console.log("Provider:", provider);
+    console.log("Summary length:", summary?.length);
+
+    if (!summary) {
+      return res.status(400).json({
+        success: false,
+        error: "Summary text is required",
+      });
+    }
+
+    const prompt = `You are a healthcare data extraction assistant. Extract structured patient information from the following medical summary/notes.
+
+Return a JSON object with these fields (use null for missing information):
+- name: Patient's full name
+- mrn: Medical Record Number (if mentioned)
+- age: Patient age as a number
+- sex: "M", "F", or "Other"
+- room: Room number (if mentioned)
+- diagnosis: Primary diagnosis
+- condition: Current condition or chief complaint
+- riskLevel: "low", "medium", "high", or "critical" (assess based on the summary)
+- codeStatus: "Full Code", "DNR", "DNI", or "DNR/DNI"
+- medications: Array of medication names
+- allergies: Array of allergies
+- lastVitals: Object with temp, heartRate, bp, respRate, o2Sat (extract if present)
+- gridX: null (user will set this)
+- gridY: null (user will set this)
+
+Medical Summary:
+${summary}
+
+Return ONLY the JSON object, no additional text.`;
+
+    let extractedData;
+
+    if (provider === "claude") {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2048,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      const responseText = message.content[0].text;
+      console.log("Claude response:", responseText);
+
+      // Parse JSON from response
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        extractedData = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("Failed to extract JSON from AI response");
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported AI provider",
+      });
+    }
+
+    console.log("Extracted patient data:", extractedData);
+
+    res.json({
+      success: true,
+      patientData: extractedData,
+    });
+  } catch (error) {
+    console.error("Error extracting patient data:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to extract patient data",
     });
   }
 });

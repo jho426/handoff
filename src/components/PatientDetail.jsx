@@ -11,6 +11,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Edit3,
+  Clock,
+  CheckSquare,
+  Square,
+  AlertTriangle,
 } from "lucide-react";
 import FormattedHandoffNotes from "./FormattedHandoffNotes";
 import "./PatientDetail.css";
@@ -28,6 +32,9 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
   const [imageAnalysis, setImageAnalysis] = useState("");
   const [isEditingPatient, setIsEditingPatient] = useState(false);
   const [editedPatient, setEditedPatient] = useState({});
+  const [handoffNotesHistory, setHandoffNotesHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [tasks, setTasks] = useState([]);
 
   const fileInputRef = useRef(null);
 
@@ -44,6 +51,8 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
     setHandoffNotes(notes);
     setImageAnalysis(analysis);
+    setHandoffNotesHistory(patient.handoffNotesHistory || patient.handoff_notes_history || []);
+    setTasks(patient.tasks || []);
     setEditedPatient({
       name: patient.demographics?.name || patient.patient_name || "",
       age: patient.demographics?.age || patient.age || "",
@@ -55,6 +64,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     });
 
     console.log("✓ Notes loaded into state");
+    console.log("History loaded:", patient.handoffNotesHistory?.length || 0, "versions");
     console.log("=== END LOADING ===");
   }, [patient]);
 
@@ -63,13 +73,23 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     setLoading(true);
     setError("");
 
+    // Get the most recent previous handoff notes for comparison
+    const previousNotes = handoffNotes || (handoffNotesHistory.length > 0 ? handoffNotesHistory[0].notes : null);
+
+    console.log("=== GENERATING NEW HANDOFF NOTES ===");
+    console.log("Previous notes available:", !!previousNotes);
+    console.log("History count:", handoffNotesHistory.length);
+
     try {
       const response = await fetch(
         `http://localhost:3001/api/summarize-record/${aiProvider}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ patientData: patient }),
+          body: JSON.stringify({
+            patientData: patient,
+            previousNotes: previousNotes
+          }),
         }
       );
 
@@ -288,6 +308,35 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Toggle task completion
+  const toggleTask = async (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !task.completed })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update task');
+      }
+
+      // Update local state
+      setTasks(prevTasks =>
+        prevTasks.map(t =>
+          t.id === taskId ? { ...t, completed: !t.completed } : t
+        )
+      );
+    } catch (err) {
+      console.error('Error toggling task:', err);
+      setError('Failed to update task status');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
   const patientName = patient.demographics?.name || patient.patient_name;
   const patientAge = patient.demographics?.age || patient.age;
   const patientSex = patient.demographics?.sex || patient.sex;
@@ -332,17 +381,25 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-medium transition-colors"
                   >
                     <Edit3 className="w-4 h-4 inline mr-1" />
-                    Edit
+                    Edit Patient Info
                   </button>
                 ) : (
-                  <button
-                    onClick={savePatientInfo}
-                    disabled={loading}
-                    className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-full text-sm font-medium transition-colors"
-                  >
-                    <Save className="w-4 h-4 inline mr-1" />
-                    {loading ? "Saving..." : "Save"}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setIsEditingPatient(false)}
+                      className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={savePatientInfo}
+                      disabled={loading}
+                      className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-full text-sm font-medium transition-colors"
+                    >
+                      <Save className="w-4 h-4 inline mr-1" />
+                      {loading ? "Saving..." : "Save Patient Info"}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -498,6 +555,107 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
             </div>
           </div>
 
+          {/* Task Status Section */}
+          {tasks && tasks.length > 0 && (
+            <div className="tasks-card">
+              <h3 className="tasks-title">
+                <Clock className="w-5 h-5 inline mr-2" />
+                Task Status
+              </h3>
+
+              {(() => {
+                const completedTasks = tasks.filter(t => t.completed);
+                const pendingTasks = tasks.filter(t => !t.completed);
+                const sortedPending = pendingTasks.sort((a, b) => {
+                  const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+                  return (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99);
+                });
+
+                return (
+                  <>
+                    {/* Task Summary */}
+                    <div className="task-summary">
+                      <div className="task-summary-item">
+                        <span className="task-summary-value">{tasks.length}</span>
+                        <span className="task-summary-label">Total</span>
+                      </div>
+                      <div className="task-summary-item completed">
+                        <span className="task-summary-value">{completedTasks.length}</span>
+                        <span className="task-summary-label">Completed</span>
+                      </div>
+                      <div className="task-summary-item pending">
+                        <span className="task-summary-value">{pendingTasks.length}</span>
+                        <span className="task-summary-label">Pending</span>
+                      </div>
+                    </div>
+
+                    {/* Completed Tasks */}
+                    {completedTasks.length > 0 && (
+                      <div className="task-section">
+                        <h4 className="task-section-title">
+                          <CheckSquare className="w-4 h-4 inline text-green-600" />
+                          Completed This Shift ({completedTasks.length})
+                        </h4>
+                        <div className="task-list">
+                          {completedTasks.map(task => (
+                            <div
+                              key={task.id}
+                              className="task-item completed"
+                              onClick={() => toggleTask(task.id)}
+                            >
+                              <CheckSquare className="task-checkbox checked" />
+                              <div className="task-content">
+                                <div className="task-header">
+                                  <span className="task-time">{task.time}</span>
+                                  <span className={`task-priority ${task.priority}`}>
+                                    {task.priority}
+                                  </span>
+                                </div>
+                                <p className="task-description">{task.description}</p>
+                                <span className="task-type">{task.type}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Outstanding Tasks */}
+                    {pendingTasks.length > 0 && (
+                      <div className="task-section">
+                        <h4 className="task-section-title">
+                          <AlertTriangle className="w-4 h-4 inline text-amber-600" />
+                          Outstanding Tasks ({pendingTasks.length})
+                        </h4>
+                        <div className="task-list">
+                          {sortedPending.map(task => (
+                            <div
+                              key={task.id}
+                              className={`task-item pending priority-${task.priority}`}
+                              onClick={() => toggleTask(task.id)}
+                            >
+                              <Square className="task-checkbox" />
+                              <div className="task-content">
+                                <div className="task-header">
+                                  <span className="task-time">{task.time}</span>
+                                  <span className={`task-priority ${task.priority}`}>
+                                    {task.priority}
+                                  </span>
+                                </div>
+                                <p className="task-description">{task.description}</p>
+                                <span className="task-type">{task.type}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
           {/* AI Provider Badge */}
           <div className="ai-provider-badge">
             <Sparkles className="ai-provider-icon" />
@@ -635,40 +793,49 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                       className="notes-action-button"
                     >
                       <Edit3 className="notes-action-icon" />
-                      Edit
+                      Edit Notes
                     </button>
                   ) : (
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="notes-action-button"
-                    >
-                      Save changes
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="notes-action-button"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveHandoffNotes}
+                        disabled={loading}
+                        className="notes-action-button primary"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2
+                              className="notes-action-icon"
+                              style={{ animation: "spin 1s linear infinite" }}
+                            />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="notes-action-icon" />
+                            Save Handoff Notes
+                          </>
+                        )}
+                      </button>
+                    </>
                   )}
                   <button onClick={handleCopy} className="notes-action-button">
                     <Copy className="notes-action-icon" />
                     {copied ? "Copied!" : "Copy"}
                   </button>
-                  {!isEditing && (
+                  {handoffNotesHistory.length > 0 && (
                     <button
-                      onClick={saveHandoffNotes}
-                      disabled={loading}
-                      className="notes-action-button primary"
+                      onClick={() => setShowHistory(!showHistory)}
+                      className="notes-action-button"
                     >
-                      {loading ? (
-                        <>
-                          <Loader2
-                            className="notes-action-icon"
-                            style={{ animation: "spin 1s linear infinite" }}
-                          />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="notes-action-icon" />
-                          Save
-                        </>
-                      )}
+                      <FileText className="notes-action-icon" />
+                      {showHistory ? "Hide" : "View"} History ({handoffNotesHistory.length})
                     </button>
                   )}
                 </div>
@@ -683,6 +850,33 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                 />
               ) : (
                 <FormattedHandoffNotes content={handoffNotes} />
+              )}
+
+              {/* Handoff Notes History */}
+              {showHistory && handoffNotesHistory.length > 0 && (
+                <div className="mt-6 border-t-2 border-gray-300 pt-6">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Previous Versions
+                  </h4>
+                  <div className="space-y-4">
+                    {handoffNotesHistory.map((version, index) => (
+                      <div key={index} className="bg-gray-50 border border-gray-300 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-gray-600">
+                            Version {handoffNotesHistory.length - index}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(version.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-700 bg-white p-3 rounded border border-gray-200">
+                          <FormattedHandoffNotes content={version.notes} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}

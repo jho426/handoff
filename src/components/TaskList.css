@@ -272,6 +272,32 @@
   font-size: 16px;
 }
 
+.add-patient-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--brand-green);
+  color: var(--brand-green-text);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.add-patient-btn:hover {
+  background: #059669;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.add-patient-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-width: 768px) {
   .task-list-header {
     flex-direction: column;

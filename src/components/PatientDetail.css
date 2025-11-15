@@ -549,12 +549,222 @@
   }
 }
 
+/* Task Status Section */
+.tasks-card {
+  background: var(--color-bg-primary);
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+.tasks-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+}
+
+.task-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.task-summary-item {
+  text-align: center;
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.task-summary-item.completed {
+  background-color: #f0fdf4;
+  border-color: #86efac;
+}
+
+.task-summary-item.pending {
+  background-color: #fef3c7;
+  border-color: #fcd34d;
+}
+
+.task-summary-value {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+
+.task-summary-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.task-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.task-section:last-child {
+  margin-bottom: 0;
+}
+
+.task-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.task-item:hover {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--brand-green);
+}
+
+.task-item.completed {
+  opacity: 0.7;
+  background-color: #f0fdf4;
+}
+
+.task-item.completed .task-description {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+.task-item.pending.priority-critical {
+  border-left: 4px solid #ef4444;
+  background-color: #fef2f2;
+}
+
+.task-item.pending.priority-high {
+  border-left: 4px solid #f97316;
+  background-color: #fff7ed;
+}
+
+.task-item.pending.priority-medium {
+  border-left: 4px solid #eab308;
+  background-color: #fefce8;
+}
+
+.task-checkbox {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+}
+
+.task-checkbox.checked {
+  color: #10b981;
+}
+
+.task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: 4px;
+}
+
+.task-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+.task-priority {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.task-priority.critical {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.task-priority.high {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+
+.task-priority.medium {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+.task-priority.low {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.task-description {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.task-type {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+  padding: 2px 8px;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
 @media (max-width: 1024px) {
   .patient-detail-grid {
     grid-template-columns: 1fr;
   }
 
   .action-buttons-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-summary {
     grid-template-columns: 1fr;
   }
 }
