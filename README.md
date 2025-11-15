@@ -4,11 +4,27 @@ An AI-powered web application designed to streamline nurse-to-nurse patient hand
 
 ## Features
 
-- **Image Analysis**: Upload photos of handoff whiteboards or documents to get AI-powered summaries
-- **Patient Records**: View and generate AI summaries of patient records with key clinical information
+- **Comprehensive Patient Detail View**: Click any patient to access their full record with:
+  - Complete medical history and vital signs
+  - AI-powered handoff note generation
+  - Image upload and analysis capabilities
+  - Editable handoff notes with auto-save
+
+- **AI Handoff Note Generation**: Generate structured handoff notes from patient records with:
+  - Patient overview and clinical status
+  - Key lab findings and trends
+  - Active medications and pending orders
+  - Safety concerns and alerts
+
+- **Image Upload & Integration**: Upload handoff whiteboard photos or documents and:
+  - Get AI analysis of handoff images
+  - Automatically merge image analysis with patient records
+  - Create comprehensive handoff notes combining multiple sources
+
 - **Dual AI Support**: Choose between Claude Sonnet 4 or GPT-4o for analysis
+- **Edit & Save**: Edit generated notes and save to patient record
 - **Copy-to-Clipboard**: Easily copy summaries for quick reference
-- **Modern UI**: Clean, intuitive interface built with React and Tailwind CSS
+- **Modern UI**: Clean, intuitive interface built with React and Tailwind CSS v4
 
 ## Getting Started
 
@@ -64,21 +80,25 @@ The app will be available at `http://localhost:5173`
 
 ## Usage
 
-### Analyzing Handoff Documents
+### Patient Handoff Workflow
 
-1. Select your preferred AI provider (Claude or OpenAI) from the dashboard
+1. **Select AI Provider**: Choose Claude or OpenAI from the dashboard
+2. **Browse Patients**: Click "Patient Records Summary" to see all patients
+3. **Select Patient**: Click on any patient card to open their detailed view
+4. **Generate Handoff Notes**: Click "Generate from Record" to create AI-powered notes
+5. **Add Images (Optional)**: Click "Upload Handoff Image" to add whiteboard photos
+   - The AI will analyze the image and merge it with the patient record
+6. **Edit Notes**: Click "Edit" to modify the generated handoff notes
+7. **Save**: Click "Save" to store notes with the patient record
+8. **Copy & Share**: Use "Copy" button to quickly share notes with your team
+
+### Standalone Image Analysis
+
+1. Select your AI provider from the dashboard
 2. Click "Analyze Handoff Document"
 3. Upload an image of a handoff whiteboard or sheet
 4. Click "Analyze Document" to get an AI-generated summary
 5. Copy the summary to share with your team
-
-### Viewing Patient Records
-
-1. Select your preferred AI provider from the dashboard
-2. Click "Patient Records Summary"
-3. Click on any patient to view their details
-4. Click "Generate AI Summary" to get a handoff-ready summary
-5. Copy the summary for your handoff notes
 
 ## API Endpoints
 
@@ -91,6 +111,7 @@ The backend server provides the following endpoints:
 - `POST /api/summarize-record/openai` - Summarize patient record with OpenAI
 - `GET /api/patients` - Get all patient records
 - `GET /api/patients/:id` - Get specific patient record
+- `POST /api/patients/:id/handoff` - Save handoff notes for a patient
 
 ## Project Structure
 
@@ -99,18 +120,20 @@ handoff/
 ├── src/
 │   ├── components/
 │   │   ├── Dashboard.jsx       # Main dashboard component
-│   │   ├── ImageAnalyzer.jsx   # Image upload and analysis
-│   │   └── PatientRecords.jsx  # Patient records viewer
+│   │   ├── ImageAnalyzer.jsx   # Standalone image analysis
+│   │   ├── PatientRecords.jsx  # Patient list viewer
+│   │   └── PatientDetail.jsx   # Detailed patient view with handoff generation
 │   ├── pages/
 │   │   └── handoffUploadImage.jsx  # Legacy component (not used)
 │   ├── App.jsx           # Root component
 │   ├── main.jsx          # Application entry point
-│   ├── index.css         # Global styles with Tailwind
+│   ├── index.css         # Global styles with Tailwind v4
 │   └── records.json      # Sample patient data
 ├── server/
 │   └── index.js          # Express backend server
+├── .env                  # Environment variables (your API keys)
 ├── .env.example          # Environment variables template
-├── tailwind.config.js    # Tailwind CSS configuration
+├── postcss.config.js     # PostCSS configuration for Tailwind v4
 ├── vite.config.js        # Vite configuration
 └── package.json          # Project dependencies
 ```

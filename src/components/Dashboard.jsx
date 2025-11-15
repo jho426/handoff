@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { FiGrid, FiList, FiMap, FiUsers, FiFilter } from "react-icons/fi";
+import {
+  FiGrid,
+  FiList,
+  FiMap,
+  FiUsers,
+  FiFilter,
+  FiSettings,
+} from "react-icons/fi";
 import RoomCard from "./RoomCard";
 import NurseSchedule from "./NurseSchedule";
 import TaskList from "./TaskList";
 import RouteMap from "./RouteMap";
+import PatientDetail from "./PatientDetail";
 import { mockRooms } from "../data/mockData";
 import "./Dashboard.css";
 
@@ -11,6 +19,7 @@ const Dashboard = () => {
   const [view, setView] = useState("rooms"); // rooms, tasks, route, schedule
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [filterRisk, setFilterRisk] = useState("all");
+  const [aiProvider, setAiProvider] = useState("claude");
 
   const filteredRooms =
     filterRisk === "all"
@@ -25,6 +34,50 @@ const Dashboard = () => {
     medium: mockRooms.filter((r) => r.patient.riskLevel === "medium").length,
     low: mockRooms.filter((r) => r.patient.riskLevel === "low").length,
   };
+
+  // If patient selected, show PatientDetail instead of dashboard
+  if (selectedRoom) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
+        <PatientDetail
+          patient={{
+            patientId: selectedRoom.patient.mrn,
+            room: selectedRoom.id,
+            demographics: {
+              name: selectedRoom.patient.name,
+              age: selectedRoom.patient.age,
+              sex: selectedRoom.patient.sex || "Unknown",
+              history: selectedRoom.patient.diagnosis
+                ? [selectedRoom.patient.diagnosis]
+                : [],
+              codeStatus: selectedRoom.patient.codeStatus || "Full Code",
+            },
+            chiefComplaint: selectedRoom.patient.condition,
+            vitals: {
+              temp: [selectedRoom.patient.lastVitals.temp],
+              heartRate: [selectedRoom.patient.lastVitals.heartRate],
+              bloodPressure: [selectedRoom.patient.lastVitals.bp],
+              respRate: [selectedRoom.patient.lastVitals.respRate || "N/A"],
+              oxygen: [
+                selectedRoom.patient.lastVitals.o2Sat
+                  ? `${selectedRoom.patient.lastVitals.o2Sat}%`
+                  : "N/A",
+              ],
+            },
+            medications: selectedRoom.patient.medications,
+            allergies: selectedRoom.patient.allergies,
+            tasks: selectedRoom.tasks,
+          }}
+          aiProvider={aiProvider}
+          onBack={() => setSelectedRoom(null)}
+          onUpdate={(updated) => {
+            // Handle patient update if needed
+            console.log("Patient updated:", updated);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard">
@@ -45,6 +98,51 @@ const Dashboard = () => {
           <div className="stat-card high">
             <div className="stat-value">{riskCounts.high}</div>
             <div className="stat-label">High Risk</div>
+          </div>
+          <div className="stat-card ai-provider">
+            <div className="ai-provider-selector">
+              <FiSettings className="icon" style={{ marginBottom: "8px" }} />
+              <div className="stat-label">AI Provider</div>
+              <div className="provider-buttons">
+                <button
+                  onClick={() => setAiProvider("claude")}
+                  className={`provider-btn ${
+                    aiProvider === "claude" ? "active" : ""
+                  }`}
+                  style={{
+                    background: aiProvider === "claude" ? "#7c3aed" : "#e5e7eb",
+                    color: aiProvider === "claude" ? "white" : "#6b7280",
+                    padding: "4px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Claude
+                </button>
+                <button
+                  onClick={() => setAiProvider("openai")}
+                  className={`provider-btn ${
+                    aiProvider === "openai" ? "active" : ""
+                  }`}
+                  style={{
+                    background: aiProvider === "openai" ? "#10b981" : "#e5e7eb",
+                    color: aiProvider === "openai" ? "white" : "#6b7280",
+                    padding: "4px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: "500",
+                    marginLeft: "4px",
+                  }}
+                >
+                  OpenAI
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -114,111 +212,6 @@ const Dashboard = () => {
 
         {view === "schedule" && <NurseSchedule />}
       </main>
-
-      {selectedRoom && (
-        <div className="modal-overlay" onClick={() => setSelectedRoom(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                Room {selectedRoom.id} - {selectedRoom.patient.name}
-              </h2>
-              <button
-                className="close-btn"
-                onClick={() => setSelectedRoom(null)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="detail-section">
-                <h3>Patient Information</h3>
-                <div className="detail-grid">
-                  <div>
-                    <strong>MRN:</strong> {selectedRoom.patient.mrn}
-                  </div>
-                  <div>
-                    <strong>Age:</strong> {selectedRoom.patient.age} years
-                  </div>
-                  <div>
-                    <strong>Admission Date:</strong>{" "}
-                    {selectedRoom.patient.admissionDate}
-                  </div>
-                  <div>
-                    <strong>Diagnosis:</strong> {selectedRoom.patient.diagnosis}
-                  </div>
-                  <div>
-                    <strong>Condition:</strong> {selectedRoom.patient.condition}
-                  </div>
-                  <div>
-                    <strong>Risk Level:</strong>{" "}
-                    {selectedRoom.patient.riskLevel}
-                  </div>
-                </div>
-              </div>
-
-              <div className="detail-section">
-                <h3>Vital Signs</h3>
-                <div className="vitals-detail">
-                  <div>
-                    Blood Pressure:{" "}
-                    <strong>{selectedRoom.patient.lastVitals.bp}</strong>
-                  </div>
-                  <div>
-                    Heart Rate:{" "}
-                    <strong>
-                      {selectedRoom.patient.lastVitals.heartRate} bpm
-                    </strong>
-                  </div>
-                  <div>
-                    Temperature:{" "}
-                    <strong>{selectedRoom.patient.lastVitals.temp}°F</strong>
-                  </div>
-                  <div>
-                    O2 Saturation:{" "}
-                    <strong>{selectedRoom.patient.lastVitals.o2Sat}%</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="detail-section">
-                <h3>Medications</h3>
-                <ul className="medications-list">
-                  {selectedRoom.patient.medications.map((med, idx) => (
-                    <li key={idx}>{med}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="detail-section">
-                <h3>Allergies</h3>
-                <p>
-                  {selectedRoom.patient.allergies.length > 0
-                    ? selectedRoom.patient.allergies.join(", ")
-                    : "None"}
-                </p>
-              </div>
-
-              <div className="detail-section">
-                <h3>All Tasks</h3>
-                <div className="tasks-list">
-                  {selectedRoom.tasks.map((task) => (
-                    <div key={task.id} className="task-item">
-                      <span className="task-time">{task.time}</span>
-                      <span className="task-type">{task.type}</span>
-                      <span className="task-description">
-                        {task.description}
-                      </span>
-                      <span className={`task-priority ${task.priority}`}>
-                        {task.priority}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
