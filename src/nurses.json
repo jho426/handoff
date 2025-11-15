@@ -1,0 +1,43 @@
+{
+  "nurses": [
+    {
+      "nurseId": "N001",
+      "name": "Emily Carter",
+      "clockedIn": true,
+      "clockInTime": "2025-11-15T08:02:00Z",
+      "assignedColor": "#4A90E2",
+      "tasks": {
+        "todosCompleted": [
+          {
+            "taskId": "T101",
+            "description": "Checked vitals for Room 301",
+            "timestamp": "2025-11-15T09:15:00Z"
+          },
+          {
+            "taskId": "T102",
+            "description": "Administered morning medications to Room 302",
+            "timestamp": "2025-11-15T09:45:00Z"
+          }
+        ],
+        "ehrUploads": [
+          {
+            "ehrId": "EHR_P301_01",
+            "patientId": "P301",
+            "timestamp": "2025-11-15T10:10:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "nurseId": "N002",
+      "name": "Jason Kim",
+      "clockedIn": true,
+      "clockInTime": "2025-11-15T07:50:00Z",
+      "assignedColor": "#E24A6C",
+      "tasks": {
+        "todosCompleted": [],
+        "ehrUploads": []
+      }
+    }
+  ]
+}
