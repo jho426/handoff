@@ -251,39 +251,6 @@ const NurseSchedule = () => {
           })}
         </div>
       )}
-
-      <div className="scheduling-insights">
-        <h3>AI Scheduling Insights</h3>
-        <div className="insights-grid">
-          <div className="insight-card">
-            <div className="insight-icon">🎯</div>
-            <div className="insight-content">
-              <h4>Optimal Distribution</h4>
-              <p>Workload balanced across all nurses with expertise matching patient needs</p>
-            </div>
-          </div>
-          <div className="insight-card">
-            <div className="insight-icon">⚡</div>
-            <div className="insight-content">
-              <h4>Efficiency Score</h4>
-              <p>
-                Average efficiency: {
-                  nurses.length > 0 
-                    ? Math.round(nurses.reduce((sum, n) => sum + (n.efficiency || 0), 0) / nurses.length)
-                    : 0
-                }%
-              </p>
-            </div>
-          </div>
-          <div className="insight-card">
-            <div className="insight-icon">🔄</div>
-            <div className="insight-content">
-              <h4>Auto-Adjustment</h4>
-              <p>Schedule updates automatically when new patients arrive or conditions change</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

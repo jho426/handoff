@@ -127,18 +127,14 @@
 }
 
 .task-item.critical,
-.task-item.high {
-  border-left-color: var(--brand-green);
-  background-color: var(--brand-green-lighter);
-}
-
+.task-item.high,
 .task-item.medium {
   border-left-color: var(--color-border);
 }
 
 .task-item.completed {
-  opacity: 0.6;
-  background: var(--color-bg-secondary);
+  opacity: 0.7;
+  background: #e5e7eb;
 }
 
 .task-item.completed .task-description {
@@ -161,11 +157,11 @@
 .check-icon {
   width: 24px;
   height: 24px;
-  color: var(--brand-green);
+  color: #6b7280;
 }
 
 .check-icon.completed {
-  color: var(--brand-green);
+  color: #6b7280;
 }
 
 .task-content {
@@ -210,10 +206,31 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background-color: var(--brand-green-light);
-  color: var(--brand-green);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+/* Task priority colors */
+.task-priority-badge.critical {
+  background-color: rgba(156, 35, 31, 0.15);
+  color: #9c231f;
+}
+
+.task-priority-badge.high {
+  background-color: rgba(189, 140, 77, 0.15);
+  color: #bd8c4d;
+}
+
+.task-priority-badge.medium {
+  background-color: rgba(189, 181, 94, 0.15);
+  color: #bdb55e;
+}
+
+.task-priority-badge.low {
+  background-color: rgba(149, 161, 116, 0.15);
+  color: #95a174;
 }
 
 .priority-icon {

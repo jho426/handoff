@@ -388,21 +388,22 @@ const RouteMap = () => {
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke="#3b82f6"
-                  strokeWidth="4"
+                  stroke="#445031"
+                  strokeWidth="3"
                   strokeDasharray="8,4"
-                  markerEnd="url(#arrowhead)"
+                  markerEnd={`url(#arrowhead-${index})`}
+                  opacity="0.6"
                 />
                 <defs>
                   <marker
-                    id="arrowhead"
+                    id={`arrowhead-${index}`}
                     markerWidth="10"
                     markerHeight="10"
                     refX="9"
                     refY="3"
                     orient="auto"
                   >
-                    <polygon points="0 0, 10 3, 0 6" fill="#3b82f6" />
+                    <polygon points="0 0, 10 3, 0 6" fill="#445031" opacity="0.6" />
                   </marker>
                 </defs>
               </svg>

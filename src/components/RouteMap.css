@@ -267,6 +267,18 @@
   pointer-events: none;
 }
 
+.route-line line {
+  stroke: var(--brand-green);
+  stroke-width: 3;
+  stroke-dasharray: 8, 4;
+  opacity: 0.6;
+}
+
+.route-line polygon {
+  fill: var(--brand-green);
+  opacity: 0.6;
+}
+
 .route-list {
   background: var(--color-bg-primary);
   border-radius: 8px;

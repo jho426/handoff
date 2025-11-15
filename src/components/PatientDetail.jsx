@@ -366,37 +366,37 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                   onChange={(e) =>
                     setEditedPatient({ ...editedPatient, name: e.target.value })
                   }
-                  className="text-2xl font-bold text-gray-800 border-b-2 border-blue-500 outline-none bg-transparent"
+                  className="patient-name-input"
                 />
               ) : (
                 <h2 className="patient-name">{patientName}</h2>
               )}
-              <div className="room-badge">
-                <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+              <div className="patient-header-actions">
+                <div className="room-badge">
                   Room {patient.room}
                 </div>
                 {!isEditingPatient ? (
                   <button
                     onClick={() => setIsEditingPatient(true)}
-                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-medium transition-colors"
+                    className="patient-action-btn secondary"
                   >
-                    <Edit3 className="w-4 h-4 inline mr-1" />
+                    <Edit3 className="patient-action-icon" />
                     Edit Patient Info
                   </button>
                 ) : (
                   <>
                     <button
                       onClick={() => setIsEditingPatient(false)}
-                      className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-sm font-medium transition-colors"
+                      className="patient-action-btn secondary"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={savePatientInfo}
                       disabled={loading}
-                      className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-full text-sm font-medium transition-colors"
+                      className="patient-action-btn primary"
                     >
-                      <Save className="w-4 h-4 inline mr-1" />
+                      <Save className="patient-action-icon" />
                       {loading ? "Saving..." : "Save Patient Info"}
                     </button>
                   </>
@@ -416,7 +416,8 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                           age: e.target.value,
                         })
                       }
-                      className="w-16 border-b border-gray-300 outline-none mr-2"
+                      className="patient-detail-input"
+                      style={{ width: '60px', marginRight: 'var(--spacing-sm)' }}
                     />
                     •
                     <input
@@ -428,7 +429,8 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                           sex: e.target.value,
                         })
                       }
-                      className="w-20 border-b border-gray-300 outline-none ml-2"
+                      className="patient-detail-input"
+                      style={{ width: '80px', marginLeft: 'var(--spacing-sm)' }}
                     />
                   </>
                 ) : (
@@ -456,7 +458,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     chiefComplaint: e.target.value,
                   })
                 }
-                className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500"
+                className="chief-complaint-input"
                 rows="2"
               />
             ) : (
@@ -481,7 +483,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                         codeStatus: e.target.value,
                       })
                     }
-                    className="info-value border-b border-gray-300 outline-none"
+                    className="info-value-input"
                   />
                 ) : (
                   <p className="info-value">{codeStatus}</p>
@@ -559,7 +561,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
           {tasks && tasks.length > 0 && (
             <div className="tasks-card">
               <h3 className="tasks-title">
-                <Clock className="w-5 h-5 inline mr-2" />
+                <Clock className="tasks-title-icon" />
                 Task Status
               </h3>
 
@@ -593,7 +595,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     {completedTasks.length > 0 && (
                       <div className="task-section">
                         <h4 className="task-section-title">
-                          <CheckSquare className="w-4 h-4 inline text-green-600" />
+                          <CheckSquare className="task-section-icon completed-icon" />
                           Completed This Shift ({completedTasks.length})
                         </h4>
                         <div className="task-list">
@@ -624,7 +626,7 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
                     {pendingTasks.length > 0 && (
                       <div className="task-section">
                         <h4 className="task-section-title">
-                          <AlertTriangle className="w-4 h-4 inline text-amber-600" />
+                          <AlertTriangle className="task-section-icon pending-icon" />
                           Outstanding Tasks ({pendingTasks.length})
                         </h4>
                         <div className="task-list">
@@ -854,23 +856,23 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
 
               {/* Handoff Notes History */}
               {showHistory && handoffNotesHistory.length > 0 && (
-                <div className="mt-6 border-t-2 border-gray-300 pt-6">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
+                <div className="handoff-history-section">
+                  <h4 className="handoff-history-title">
+                    <FileText className="handoff-history-icon" />
                     Previous Versions
                   </h4>
-                  <div className="space-y-4">
+                  <div className="handoff-history-list">
                     {handoffNotesHistory.map((version, index) => (
-                      <div key={index} className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-gray-600">
+                      <div key={index} className="handoff-history-item">
+                        <div className="handoff-history-header">
+                          <span className="handoff-history-version">
                             Version {handoffNotesHistory.length - index}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="handoff-history-timestamp">
                             {new Date(version.timestamp).toLocaleString()}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-700 bg-white p-3 rounded border border-gray-200">
+                        <div className="handoff-history-content">
                           <FormattedHandoffNotes content={version.notes} />
                         </div>
                       </div>
