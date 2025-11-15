@@ -16,7 +16,7 @@ const RoomCard = ({ room, onSelect }) => {
     >
       <div className="room-card-header">
         <div className="room-number">Room {room.id}</div>
-        <div className="risk-badge">
+        <div className={`risk-badge ${room.patient.riskLevel}`}>
           {getRiskLabel(room.patient.riskLevel)} Risk
         </div>
       </div>

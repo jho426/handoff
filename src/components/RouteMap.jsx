@@ -456,7 +456,7 @@ const RouteMap = () => {
                 <div className="step-content">
                   <div className="step-header">
                     <span className="step-room">Room {room.id}</span>
-                    <span className="step-risk">
+                    <span className={`step-risk ${room.patient.riskLevel}`}>
                       {room.patient.riskLevel} risk
                     </span>
                   </div>
