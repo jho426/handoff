@@ -3,19 +3,80 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg,#f8fafc,#eef2ff);
+  background-color: var(--color-bg-secondary);
+  padding: var(--spacing-lg);
 }
+
 .login-card {
-  width: 360px;
-  background: white;
-  padding: 28px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(15,23,42,0.08);
+  width: 100%;
+  max-width: 400px;
+  background: var(--color-bg-primary);
+  padding: var(--spacing-xl);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
   text-align: left;
 }
-.login-card h2 { margin: 0 0 6px 0; }
-.login-sub { color: #6b7280; font-size: 14px; margin-bottom: 14px }
-.login-form label { display: block; margin-bottom: 12px; font-size: 13px }
-.login-form input { width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 6px }
-.btn-primary { width: 100%; padding: 10px 14px; background: #3b82f6; color: white; border: none; border-radius: 8px; margin-top: 8px; cursor: pointer }
-.login-note { margin-top: 10px; font-size: 12px; color: #9ca3af }
+
+.login-card h2 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.login-sub {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: var(--spacing-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.login-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  margin-top: var(--spacing-sm);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: border-color 0.2s ease;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: var(--brand-green);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  background: var(--brand-green);
+  color: var(--brand-green-text);
+  border: none;
+  border-radius: 6px;
+  margin-top: var(--spacing-md);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: opacity 0.2s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.login-note {
+  margin-top: var(--spacing-md);
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}

@@ -28,15 +28,6 @@ const TaskList = () => {
     setCompletedTasks(newCompleted);
   };
 
-  const getPriorityColor = (priority) => {
-    const colors = {
-      critical: '#dc2626',
-      high: '#ef4444',
-      medium: '#f59e0b',
-      low: '#10b981'
-    };
-    return colors[priority] || '#6b7280';
-  };
 
   const getPriorityIcon = (priority) => {
     if (priority === 'critical') {
@@ -126,7 +117,7 @@ const TaskList = () => {
                     <FiClock className="icon" />
                     {task.time}
                   </div>
-                  <div className="task-priority-badge" style={{ backgroundColor: getPriorityColor(task.priority) }}>
+                  <div className={`task-priority-badge ${task.priority}`}>
                     {getPriorityIcon(task.priority)}
                     {task.priority}
                   </div>

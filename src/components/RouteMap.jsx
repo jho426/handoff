@@ -73,15 +73,6 @@ const RouteMap = () => {
     return Math.round(total);
   };
 
-  const getRiskColor = (riskLevel) => {
-    const colors = {
-      low: '#10b981',
-      medium: '#f59e0b',
-      high: '#ef4444',
-      critical: '#dc2626'
-    };
-    return colors[riskLevel] || '#6b7280';
-  };
 
   const handleMouseDown = (e, room) => {
     e.preventDefault();
@@ -295,7 +286,6 @@ const RouteMap = () => {
                 style={{
                   left: `${room.position.gridX * GRID_SIZE}px`,
                   top: `${room.position.gridY * GRID_SIZE}px`,
-                  backgroundColor: getRiskColor(room.patient.riskLevel),
                   cursor: 'move',
                   zIndex: isDragging ? 1000 : (inRoute ? 10 : 5)
                 }}
@@ -329,10 +319,7 @@ const RouteMap = () => {
               <div className="step-content">
                 <div className="step-header">
                   <span className="step-room">Room {room.id}</span>
-                  <span 
-                    className="step-risk"
-                    style={{ color: getRiskColor(room.patient.riskLevel) }}
-                  >
+                  <span className="step-risk">
                     {room.patient.riskLevel} risk
                   </span>
                 </div>

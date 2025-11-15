@@ -4,43 +4,19 @@ import './RoomCard.css';
 
 const RoomCard = ({ room, onSelect }) => {
   const [expanded, setExpanded] = useState(false);
-  
-  const getRiskColor = (riskLevel) => {
-    const colors = {
-      low: '#10b981',      // green
-      medium: '#f59e0b',   // amber
-      high: '#ef4444',     // red
-      critical: '#dc2626'  // dark red
-    };
-    return colors[riskLevel] || '#6b7280';
-  };
 
   const getRiskLabel = (riskLevel) => {
     return riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1);
   };
 
-  const getConditionColor = (condition) => {
-    const colors = {
-      'Good': '#10b981',
-      'Stable': '#3b82f6',
-      'Improving': '#10b981',
-      'Critical': '#ef4444'
-    };
-    return colors[condition] || '#6b7280';
-  };
-
   return (
     <div 
       className={`room-card ${room.patient.riskLevel}`}
-      style={{ borderLeftColor: getRiskColor(room.patient.riskLevel) }}
       onClick={() => onSelect && onSelect(room)}
     >
       <div className="room-card-header">
         <div className="room-number">Room {room.id}</div>
-        <div 
-          className="risk-badge"
-          style={{ backgroundColor: getRiskColor(room.patient.riskLevel) }}
-        >
+        <div className="risk-badge">
           {getRiskLabel(room.patient.riskLevel)} Risk
         </div>
       </div>
@@ -53,9 +29,7 @@ const RoomCard = ({ room, onSelect }) => {
         <div className="patient-details">
           <span>{room.patient.age} years</span>
           <span>•</span>
-          <span style={{ color: getConditionColor(room.patient.condition) }}>
-            {room.patient.condition}
-          </span>
+          <span>{room.patient.condition}</span>
         </div>
         <div className="diagnosis">{room.patient.diagnosis}</div>
       </div>

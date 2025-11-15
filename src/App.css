@@ -1,3 +1,81 @@
-.App {
-  width: 100%;
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-secondary);
+}
+
+.app-header {
+  background-color: var(--brand-green);
+  border-bottom: 1px solid var(--brand-green);
+  padding: var(--spacing-md) var(--spacing-xl);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--brand-green-text);
+  letter-spacing: -0.02em;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.nav-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: none;
+  border: none;
+  color: var(--brand-green-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  opacity: 0.9;
+}
+
+.nav-btn:hover {
+  color: var(--brand-green-text);
+  background-color: rgba(232, 254, 183, 0.1);
+  opacity: 1;
+}
+
+.nav-btn.active {
+  color: var(--brand-green-text);
+  background-color: rgba(232, 254, 183, 0.15);
+  opacity: 1;
+}
+
+.nav-btn.logout {
+  color: var(--brand-green-text);
+  opacity: 0.9;
+}
+
+.nav-btn.logout:hover {
+  color: var(--brand-green-text);
+  opacity: 1;
+}
+
+.nav-spacer {
+  width: 1px;
+  height: 20px;
+  background-color: rgba(232, 254, 183, 0.3);
+}
+
+.welcome {
+  font-size: 14px;
+  color: var(--brand-green-text);
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.app-main {
+  flex: 1;
+  padding: var(--spacing-xl);
 }

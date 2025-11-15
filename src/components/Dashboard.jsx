@@ -39,7 +39,7 @@ const Dashboard = () => {
   // If patient selected, show PatientDetail instead of dashboard
   if (selectedRoom) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
+      <div style={{ minHeight: '100vh', padding: 'var(--spacing-xl)' }}>
         <PatientDetail
           patient={{
             patientId: selectedRoom.patient.mrn,
@@ -102,7 +102,7 @@ const Dashboard = () => {
           </div>
           <div className="stat-card ai-provider">
             <div className="ai-provider-selector">
-              <FiSettings className="icon" style={{ marginBottom: "8px" }} />
+              <FiSettings className="icon" />
               <div className="stat-label">AI Provider</div>
               <div className="provider-buttons">
                 <button
@@ -110,16 +110,6 @@ const Dashboard = () => {
                   className={`provider-btn ${
                     aiProvider === "claude" ? "active" : ""
                   }`}
-                  style={{
-                    background: aiProvider === "claude" ? "#7c3aed" : "#e5e7eb",
-                    color: aiProvider === "claude" ? "white" : "#6b7280",
-                    padding: "4px 12px",
-                    borderRadius: "6px",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: "500",
-                  }}
                 >
                   Claude
                 </button>
@@ -128,17 +118,6 @@ const Dashboard = () => {
                   className={`provider-btn ${
                     aiProvider === "openai" ? "active" : ""
                   }`}
-                  style={{
-                    background: aiProvider === "openai" ? "#10b981" : "#e5e7eb",
-                    color: aiProvider === "openai" ? "white" : "#6b7280",
-                    padding: "4px 12px",
-                    borderRadius: "6px",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: "500",
-                    marginLeft: "4px",
-                  }}
                 >
                   OpenAI
                 </button>

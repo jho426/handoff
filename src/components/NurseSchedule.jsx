@@ -8,9 +8,7 @@ const NurseSchedule = () => {
   };
 
   const getWorkloadColor = (percentage) => {
-    if (percentage >= 100) return '#ef4444';
-    if (percentage >= 75) return '#f59e0b';
-    return '#10b981';
+    return '#445031'; // Brand green
   };
 
   const getNurseRooms = (nurseName) => {
