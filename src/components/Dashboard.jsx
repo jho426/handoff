@@ -6,6 +6,7 @@ import {
   FiUsers,
   FiFilter,
   FiSettings,
+  FiUser,
 } from "react-icons/fi";
 import RoomCard from "./RoomCard";
 import NurseSchedule from "./NurseSchedule";
@@ -21,11 +22,38 @@ const Dashboard = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [filterRisk, setFilterRisk] = useState("all");
   const [aiProvider, setAiProvider] = useState("claude");
+  const [showAssignedOnly, setShowAssignedOnly] = useState(false);
+  const [currentNurseId, setCurrentNurseId] = useState(null);
   
   // State for Supabase data
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Get current nurse ID on mount
+  useEffect(() => {
+    const getCurrentNurse = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Get nurse record
+          const { data: nurseData } = await supabase
+            .from('nurses')
+            .select('id')
+            .or(`email.eq.${session.user.email},auth_user_id.eq.${session.user.id}`)
+            .single();
+          
+          if (nurseData) {
+            setCurrentNurseId(nurseData.id);
+          }
+        }
+      } catch (err) {
+        console.error('Error getting current nurse:', err);
+      }
+    };
+    
+    getCurrentNurse();
+  }, []);
 
   // Fetch rooms and patients from Supabase
   useEffect(() => {
@@ -58,6 +86,18 @@ const Dashboard = () => {
           fetchRooms();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_assignments'
+        },
+        () => {
+          console.log('Room assignments changed, refreshing...');
+          fetchRooms();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -69,12 +109,15 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch rooms with patient data and tasks
+      // Fetch rooms with patient data, tasks, and room assignments
       const { data: roomsData, error: roomsError } = await supabase
         .from('rooms')
         .select(`
           *,
-          patients (*)
+          patients (*),
+          room_assignments (
+            nurse_id
+          )
         `);
 
       if (roomsError) throw roomsError;
@@ -120,7 +163,8 @@ const Dashboard = () => {
             location: {
               gridX: room.grid_x,
               gridY: room.grid_y
-            }
+            },
+            assignedNurseId: room.room_assignments?.[0]?.nurse_id || null
           };
         })
       );
@@ -135,17 +179,24 @@ const Dashboard = () => {
     }
   };
 
+  // Filter by assigned nurse if filter is active
+  const roomsByAssignment = showAssignedOnly && currentNurseId
+    ? rooms.filter(room => room.assignedNurseId === currentNurseId)
+    : rooms;
+
+  // Filter by risk level
   const filteredRooms =
     filterRisk === "all"
-      ? rooms
-      : rooms.filter((room) => room.patient?.riskLevel === filterRisk);
+      ? roomsByAssignment
+      : roomsByAssignment.filter((room) => room.patient?.riskLevel === filterRisk);
 
+  // Calculate risk counts based on filtered rooms (by assignment)
   const riskCounts = {
-    all: rooms.length,
-    critical: rooms.filter((r) => r.patient?.riskLevel === "critical").length,
-    high: rooms.filter((r) => r.patient?.riskLevel === "high").length,
-    medium: rooms.filter((r) => r.patient?.riskLevel === "medium").length,
-    low: rooms.filter((r) => r.patient?.riskLevel === "low").length,
+    all: roomsByAssignment.length,
+    critical: roomsByAssignment.filter((r) => r.patient?.riskLevel === "critical").length,
+    high: roomsByAssignment.filter((r) => r.patient?.riskLevel === "high").length,
+    medium: roomsByAssignment.filter((r) => r.patient?.riskLevel === "medium").length,
+    low: roomsByAssignment.filter((r) => r.patient?.riskLevel === "low").length,
   };
 
   // If patient selected, show PatientDetail instead of dashboard
@@ -204,7 +255,7 @@ const Dashboard = () => {
         </div>
         <div className="header-stats">
           <div className="stat-card">
-            <div className="stat-value">{rooms.length}</div>
+            <div className="stat-value">{roomsByAssignment.length}</div>
             <div className="stat-label">Active Rooms</div>
           </div>
           <div className="stat-card critical">
@@ -259,6 +310,28 @@ const Dashboard = () => {
         {view === "rooms" && (
           <div className="filter-controls">
             <FiFilter className="icon" />
+            <button
+              className={`filter-btn ${showAssignedOnly ? 'active' : ''}`}
+              onClick={() => setShowAssignedOnly(!showAssignedOnly)}
+              title={showAssignedOnly ? 'Show all rooms' : 'Show only my assigned rooms'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: '1px solid var(--color-border)',
+                background: showAssignedOnly ? 'var(--brand-green)' : 'var(--color-bg-primary)',
+                color: showAssignedOnly ? 'var(--brand-green-text)' : 'var(--color-text-primary)',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <FiUser style={{ width: '14px', height: '14px' }} />
+              My Patients
+            </button>
             <select
               value={filterRisk}
               onChange={(e) => setFilterRisk(e.target.value)}
@@ -299,7 +372,11 @@ const Dashboard = () => {
               ))
             ) : (
               <div className="empty-state">
-                <p>No rooms found. Add patient data in Supabase to get started.</p>
+                <p>
+                  {showAssignedOnly && currentNurseId
+                    ? 'No rooms found for your assigned patients.'
+                    : 'No rooms found. Add patient data in Supabase to get started.'}
+                </p>
               </div>
             )}
           </div>
