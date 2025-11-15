@@ -1,0 +1,212 @@
+{
+  "patients": [
+    {
+      "patientId": "P301",
+      "room": "301",
+      "demographics": {
+        "name": "Maria Alvarez",
+        "age": 68,
+        "sex": "Female",
+        "history": ["Hypertension", "Type II Diabetes", "HFpEF"],
+        "codeStatus": "Full Code"
+      },
+      "chiefComplaint": "Shortness of breath for 2 days",
+      "vitals": {
+        "temp": [37.8, 38.4],
+        "heartRate": [98, 112],
+        "bloodPressure": ["148/82", "132/70"],
+        "respRate": [24, 30],
+        "oxygen": ["93% on 2L", "88% on 4L"]
+      },
+      "labs": {
+        "WBC": { "current": 15.1, "previous": 9.8, "flag": "high" },
+        "Lactate": { "current": 2.5, "previous": 1.2, "flag": "high" },
+        "Creatinine": { "current": 1.6, "previous": 1.2, "flag": "high" },
+        "Glucose": { "current": 244, "previous": 168, "flag": "high" },
+        "BNP": { "current": 720, "previous": 530, "flag": "high" }
+      },
+      "imaging": [
+        {
+          "type": "Chest X-Ray",
+          "findings": "New right lower lobe infiltrate, mild pulmonary edema",
+          "date": "today"
+        }
+      ],
+      "medications": [
+        "Ceftriaxone 1g IV q24",
+        "Azithromycin 500mg IV q24",
+        "Furosemide 40mg IV q12",
+        "Metformin 500mg BID",
+        "Lisinopril 10mg daily"
+      ],
+      "orders": [
+        "Recheck lactate at 02:00",
+        "Strict I/O",
+        "Daily weights",
+        "Repeat CXR in AM"
+      ],
+      "assessment": "Pneumonia vs CHF exacerbation"
+    },
+
+    {
+      "patientId": "P302",
+      "room": "302",
+      "demographics": {
+        "name": "Thomas Greene",
+        "age": 52,
+        "sex": "Male",
+        "history": ["COPD", "40 pack-year smoker", "Anxiety"],
+        "codeStatus": "Full Code"
+      },
+      "chiefComplaint": "Acute COPD exacerbation",
+      "vitals": {
+        "heartRate": [110, 98],
+        "bloodPressure": ["132/78", "126/74"],
+        "oxygen": ["86% RA", "92% on 2L"],
+        "respRate": [28, 24]
+      },
+      "labs": {
+        "ABG_pH": { "current": 7.32, "previous": 7.36, "flag": "low" },
+        "CO2": { "current": 62, "previous": 55, "flag": "high" },
+        "CRP": { "current": 11, "previous": 6, "flag": "high" }
+      },
+      "imaging": [
+        {
+          "type": "Chest X-Ray",
+          "findings": "Hyperinflation, no acute airspace disease"
+        }
+      ],
+      "medications": [
+        "Prednisone 40mg PO daily",
+        "Duonebs q4h",
+        "Azithromycin 500mg daily"
+      ],
+      "orders": [
+        "RT consult",
+        "Ambulation trial in AM",
+        "Continuous pulse ox"
+      ],
+      "assessment": "COPD flare improving"
+    },
+
+    {
+      "patientId": "P304",
+      "room": "304",
+      "demographics": {
+        "name": "Emily Zhang",
+        "age": 22,
+        "sex": "Female",
+        "history": ["Crohn’s disease"],
+        "codeStatus": "Full Code"
+      },
+      "chiefComplaint": "Severe abdominal pain and diarrhea",
+      "vitals": {
+        "heartRate": [105, 118],
+        "bloodPressure": ["108/68", "100/62"],
+        "temp": [38.0, 38.7],
+        "respRate": [22, 24]
+      },
+      "labs": {
+        "WBC": { "current": 13.8, "previous": 6.7, "flag": "high" },
+        "Hemoglobin": { "current": 10.1, "previous": 11.4, "flag": "low" },
+        "CRP": { "current": 48, "previous": 21, "flag": "high" },
+        "ESR": { "current": 60, "previous": 28, "flag": "high" },
+        "Potassium": { "current": 3.3, "previous": 3.9, "flag": "low" }
+      },
+      "imaging": [
+        {
+          "type": "CT Abdomen/Pelvis",
+          "findings": "Terminal ileum wall thickening, compatible with Crohn’s flare"
+        }
+      ],
+      "medications": [
+        "IV steroids",
+        "Morphine PRN",
+        "IV fluids",
+        "Potassium replacement"
+      ],
+      "orders": [
+        "Stool studies pending",
+        "Electrolytes q6h",
+        "GI consult in AM"
+      ],
+      "assessment": "Crohn’s flare with dehydration and anemia"
+    },
+
+    {
+      "patientId": "P307",
+      "room": "307",
+      "demographics": {
+        "name": "Robert Hill",
+        "age": 73,
+        "sex": "Male",
+        "history": ["Atrial fibrillation", "CKD stage 3", "Hypertension"],
+        "codeStatus": "DNR/DNI"
+      },
+      "chiefComplaint": "Weakness and fall",
+      "vitals": {
+        "bloodPressure": ["110/64", "94/58"],
+        "heartRate": ["78 (irregular)", "102 (irregular)"],
+        "oxygen": "95% RA",
+        "temp": [36.7, 36.8]
+      },
+      "labs": {
+        "Hemoglobin": { "current": 8.9, "previous": 12.0, "flag": "low" },
+        "INR": { "current": 3.2, "previous": 2.5, "flag": "high" },
+        "Creatinine": { "current": 2.0, "previous": 1.7, "flag": "high" }
+      },
+      "imaging": [
+        { "type": "CT Head", "findings": "No acute bleed" },
+        { "type": "Hip X-ray", "findings": "No fracture" }
+      ],
+      "medications": [
+        "Warfarin (held)",
+        "Gentle IV fluids",
+        "BP monitoring"
+      ],
+      "orders": [
+        "Repeat INR at 02:00",
+        "Fall precautions",
+        "Orthostatic vitals"
+      ],
+      "assessment": "Over-anticoagulated with anemia → likely cause of fall"
+    },
+
+    {
+      "patientId": "P310",
+      "room": "310",
+      "demographics": {
+        "name": "Sarah Patel",
+        "age": 33,
+        "sex": "Female",
+        "history": ["Hypothyroidism", "Asthma"],
+        "codeStatus": "Full Code"
+      },
+      "chiefComplaint": "Post-op day 2 appendectomy — abdominal pain and nausea",
+      "vitals": {
+        "temp": [37.2, 38.1],
+        "heartRate": [94, 102],
+        "bloodPressure": ["118/70", "112/68"],
+        "oxygen": "96% RA"
+      },
+      "labs": {
+        "WBC": { "current": 14.2, "previous": 10.5, "flag": "high" },
+        "Sodium": { "current": 134, "previous": 138, "flag": "low" },
+        "Potassium": { "current": 3.5, "previous": 4.0, "flag": "low" }
+      },
+      "imaging": [],
+      "medications": [
+        "Ondansetron",
+        "Hydromorphone PRN",
+        "IV fluids",
+        "Levothyroxine"
+      ],
+      "orders": [
+        "Walk 3x/day",
+        "Clear liquids advance as tolerated",
+        "Check incision site every shift"
+      ],
+      "assessment": "Possible early post-op infection vs atelectasis"
+    }
+  ]
+}
