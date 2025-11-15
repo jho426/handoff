@@ -32,6 +32,11 @@ An AI-powered web application designed to streamline nurse-to-nurse patient hand
 
 - Node.js (version 18 or higher recommended)
 - npm or yarn
+- A Supabase project with:
+  - Supabase URL and anon key
+  - Service role key (for creating nurse accounts)
+  - A `nurses` table with at least `id`, `email`, `name` columns
+  - Optional: `auth_user_id` column to link auth users to nurse records
 - An API key from either:
   - [Anthropic](https://console.anthropic.com/) for Claude
   - [OpenAI](https://platform.openai.com/api-keys) for GPT-4o
@@ -49,13 +54,22 @@ npm install
 cp .env.example .env
 ```
 
-3. Edit `.env` and add your API key(s):
+3. Edit `.env` and add your configuration:
 ```env
+# Supabase Configuration (Required)
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+
+# AI API Keys (at least one required)
 ANTHROPIC_API_KEY=your_anthropic_key_here
 OPENAI_API_KEY=your_openai_key_here
 ```
 
-**Note**: You need at least one API key configured for the app to work.
+**Note**: 
+- Supabase credentials are required for authentication
+- You need at least one AI API key configured for the app to work
+- The service role key is needed for the account creation endpoint
 
 ### Running the Application
 
@@ -77,6 +91,32 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:5173`
+
+### Setting Up Nurse Accounts
+
+The app uses Supabase Auth for authentication. To create accounts for nurses in your database:
+
+1. **Ensure your `nurses` table has the required columns:**
+   - `id` (primary key)
+   - `email` (unique, required)
+   - `name` (required)
+   - `auth_user_id` (optional, will be populated automatically)
+
+2. **Create auth accounts for existing nurses:**
+   ```bash
+   # Make a POST request to the account creation endpoint
+   curl -X POST http://localhost:3001/api/nurses/create-accounts
+   ```
+   
+   This will:
+   - Create Supabase Auth accounts for all nurses in your database
+   - Link auth users to nurse records
+   - Return temporary passwords for each created account
+   - Skip nurses that already have accounts
+
+3. **Nurses can now log in** using their email and the temporary password (they should change it on first login)
+
+**Note**: The account creation endpoint requires `SUPABASE_SERVICE_KEY` to be set in your `.env` file.
 
 ## Usage
 
@@ -112,6 +152,8 @@ The backend server provides the following endpoints:
 - `GET /api/patients` - Get all patient records
 - `GET /api/patients/:id` - Get specific patient record
 - `POST /api/patients/:id/handoff` - Save handoff notes for a patient
+- `GET /api/nurses` - Get all nurses
+- `POST /api/nurses/create-accounts` - Create Supabase Auth accounts for nurses in database
 
 ## Project Structure
 
@@ -142,6 +184,8 @@ handoff/
 
 - **Frontend**: React 18, Vite, Tailwind CSS, Lucide React (icons)
 - **Backend**: Express, Node.js
+- **Authentication**: Supabase Auth
+- **Database**: Supabase (PostgreSQL)
 - **AI Integration**: Anthropic SDK (Claude), OpenAI SDK
 - **File Upload**: Multer
 - **Environment**: dotenv

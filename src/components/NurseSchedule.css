@@ -213,6 +213,27 @@
   color: var(--brand-green);
 }
 
+/* Risk level colors */
+.risk-badge.critical {
+  background-color: rgba(156, 35, 31, 0.15);
+  color: #9c231f;
+}
+
+.risk-badge.high {
+  background-color: rgba(189, 140, 77, 0.15);
+  color: #bd8c4d;
+}
+
+.risk-badge.medium {
+  background-color: rgba(189, 181, 94, 0.15);
+  color: #bdb55e;
+}
+
+.risk-badge.low {
+  background-color: rgba(149, 161, 116, 0.15);
+  color: #95a174;
+}
+
 .room-patient {
   font-size: 15px;
   font-weight: 600;

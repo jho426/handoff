@@ -345,6 +345,27 @@
   border-radius: 4px;
 }
 
+/* Risk level colors for route map */
+.step-risk.critical {
+  background-color: rgba(156, 35, 31, 0.15);
+  color: #9c231f;
+}
+
+.step-risk.high {
+  background-color: rgba(189, 140, 77, 0.15);
+  color: #bd8c4d;
+}
+
+.step-risk.medium {
+  background-color: rgba(189, 181, 94, 0.15);
+  color: #bdb55e;
+}
+
+.step-risk.low {
+  background-color: rgba(149, 161, 116, 0.15);
+  color: #95a174;
+}
+
 .step-patient {
   font-size: 14px;
   color: var(--color-text-secondary);

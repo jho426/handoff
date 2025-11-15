@@ -38,6 +38,31 @@
   color: var(--brand-green);
 }
 
+/* Risk level colors */
+.risk-badge.critical,
+.room-card.critical .risk-badge {
+  background-color: rgba(156, 35, 31, 0.15);
+  color: #9c231f;
+}
+
+.risk-badge.high,
+.room-card.high .risk-badge {
+  background-color: rgba(189, 140, 77, 0.15);
+  color: #bd8c4d;
+}
+
+.risk-badge.medium,
+.room-card.medium .risk-badge {
+  background-color: rgba(189, 181, 94, 0.15);
+  color: #bdb55e;
+}
+
+.risk-badge.low,
+.room-card.low .risk-badge {
+  background-color: rgba(149, 161, 116, 0.15);
+  color: #95a174;
+}
+
 .patient-info {
   margin-bottom: var(--spacing-md);
 }
