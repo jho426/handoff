@@ -95,7 +95,7 @@ app.post(
 5. Pending tasks or actions needed
 6. Any safety concerns or alerts
 
-Format the output as a clear, organized summary suitable for nurse handoff. If any information is unclear or not visible, note that.`,
+Format the output as a clear, organized summary suitable for nurse handoff. If any information is unclear or not visible, note that. Keep the summary concise and focused on actionable items.`,
               },
             ],
           },
@@ -151,7 +151,7 @@ app.post(
 5. Pending tasks or actions needed
 6. Any safety concerns or alerts
 
-Format the output as a clear, organized summary suitable for nurse handoff. If any information is unclear or not visible, note that.`,
+Format the output as a clear, organized summary suitable for nurse handoff. If any information is unclear or not visible, note that. Keep the summary concise and focused on actionable items.`,
               },
               {
                 type: "image_url",
