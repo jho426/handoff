@@ -12,6 +12,7 @@ import NurseSchedule from "./NurseSchedule";
 import TaskList from "./TaskList";
 import RouteMap from "./RouteMap";
 import PatientDetail from "./PatientDetail";
+import Logs from "./Logs";
 import { mockRooms } from "../data/mockData";
 import "./Dashboard.css";
 
@@ -177,6 +178,12 @@ const Dashboard = () => {
             <FiUsers className="icon" />
             Schedule
           </button>
+          <button
+            className={`nav-tab ${view === "logs" ? "active" : ""}`}
+            onClick={() => setView("logs")}
+          >
+            Logs
+          </button>
         </div>
 
         {view === "rooms" && (
@@ -211,6 +218,8 @@ const Dashboard = () => {
         {view === "route" && <RouteMap />}
 
         {view === "schedule" && <NurseSchedule />}
+
+        {view === "logs" && <Logs />}
       </main>
     </div>
   );

@@ -1,0 +1,13 @@
+.logs-page { padding: 20px; max-width: 980px; margin: 0 auto }
+.logs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px }
+.logs-header h2 { margin: 0 }
+.logs-controls input { padding:8px 10px; border-radius:8px; border:1px solid #e5e7eb; width:320px }
+.logs-list { display:flex; flex-direction:column; gap:10px; margin-top:10px }
+.log-item { display:flex; gap:12px; padding:12px; border-radius:10px; background: #ffffff; box-shadow: 0 4px 14px rgba(2,6,23,0.04); align-items:flex-start }
+.log-time { width:120px; color:#6b7280; font-size:13px }
+.log-body { flex:1 }
+.log-top { display:flex; justify-content:space-between; align-items:center }
+.log-action { font-weight:600 }
+.log-meta { color:#6b7280; font-size:13px }
+.log-details { margin-top:6px; color:#374151 }
+.no-results { padding:20px; text-align:center; color:#6b7280 }
