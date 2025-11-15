@@ -980,33 +980,6 @@ const PatientDetail = ({ patient, aiProvider, onBack, onUpdate }) => {
               ) : (
                 <FormattedHandoffNotes content={handoffNotes} />
               )}
-
-              {/* Handoff Notes History */}
-              {showHistory && handoffNotesHistory.length > 0 && (
-                <div className="handoff-history-section">
-                  <h4 className="handoff-history-title">
-                    <FileText className="handoff-history-icon" />
-                    Previous Versions
-                  </h4>
-                  <div className="handoff-history-list">
-                    {handoffNotesHistory.map((version, index) => (
-                      <div key={index} className="handoff-history-item">
-                        <div className="handoff-history-header">
-                          <span className="handoff-history-version">
-                            Version {handoffNotesHistory.length - index}
-                          </span>
-                          <span className="handoff-history-timestamp">
-                            {new Date(version.timestamp).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="handoff-history-content">
-                          <FormattedHandoffNotes content={version.notes} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
